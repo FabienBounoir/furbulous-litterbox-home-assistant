@@ -1,0 +1,18 @@
+{
+    "name": "Furbulous Cat",
+    "filename": "furbulous",
+    "country": [
+        "FR",
+        "EU"
+    ],
+    "domains": [
+        "sensor",
+        "binary_sensor",
+        "button",
+        "switch"
+    ],
+    "iot_class": "cloud_polling",
+    "render_readme": true,
+    "homeassistant": "2024.1.0",
+    "hacs": "1.32.0"
+}

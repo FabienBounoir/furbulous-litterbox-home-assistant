@@ -1,0 +1,83 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyCharm
+.idea/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Home Assistant - Fichiers de configuration utilisateur
+config/
+*.log
+*.db
+*.db-shm
+*.db-wal
+home-assistant.db
+home-assistant_v2.db
+secrets.yaml
+known_devices.yaml
+*.db-journal
+.HA_VERSION
+.uuid
+.cloud/
+.storage/
+
+# Home Assistant - Fichiers temporaires
+*.pid
+*.sock
+*.tmp
+OZW_Log.txt
+
+# Resources et sources (fichiers de développement uniquement)
+resources/
+sources/
+
+
+# Testing
+.pytest_cache/
+.tox/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Logs
+*.log
+logs/
