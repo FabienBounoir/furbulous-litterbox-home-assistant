@@ -28,8 +28,6 @@ Intégration **complète et optimisée** pour les litières connectées **Furbul
 - 4 switches HomeKit (contrôles essentiels)
 - 1+ pet sensors (un par chat)
 
-> 📝 **Voir [CLEANUP_CHANGES.md](docs/CLEANUP_CHANGES.md)** pour le détail des modifications v1.3.0
-
 ---
 
 ## 📦 Installation
