@@ -4,31 +4,31 @@
 [![GitHub release](https://img.shields.io/github/release/fabienbounoir/furbulous-litterbox-home-assistant.svg)](https://github.com/fabienbounoir/furbulous-litterbox-home-assistant/releases)
 [![HomeKit Compatible](https://img.shields.io/badge/HomeKit-Compatible-blue.svg)](docs/HOMEKIT_COMPATIBILITY.md)
 
-Intégration complète pour les litières connectées **Furbulous Cat** dans Home Assistant avec support HomeKit.
+Intégration **complète et optimisée** pour les litières connectées **Furbulous Cat** dans Home Assistant avec support HomeKit.
 
 ---
 
 ## 🎯 Fonctionnalités
 
-### ✅ Version 1.0.0
-- ✅ **Authentication** - Connexion avec email/password ou token direct
-- ✅ **Device Discovery** - Détection automatique des litières
-- ✅ **22 Sensors** - Poids, utilisations, état, modes, versions, pet info, etc.
-- ✅ **10 Binary Sensors** - Connectivité, erreurs, modes, chat dans litière
-- ✅ **4 Buttons** - Nettoyage, vidage, emballage, DND
-- ✅ **4 Switches** - Contrôles HomeKit (auto clean, mode auto, DND, child lock)
-- ✅ **Pet Sensors** - Informations complètes sur chaque chat
-- ✅ **Error Detection** - 11 codes d'erreur avec sévérité
-- ✅ **Fast Updates** - Chat dans litière : **30 secondes** / Autres : 5 minutes
+### ✅ Version 1.1.0 
+- ✅ **Interface simplifiée** - 50% d'entités en moins, zéro doublon
+- ✅ **6 Sensors essentiels** - Poids, utilisations, durée, erreur, firmware, pet info
+- ✅ **5 Binary Sensors** - Chat détecté (30s), bac plein, connecté, child lock, sommeil
+- ✅ **1 Button** - Nettoyage manuel (testé et fonctionnel)
+- ✅ **4 Switches HomeKit** - Auto clean, mode auto, DND, child lock
+- ✅ **Connectivité améliorée** - Retry automatique, detection token robuste
+- ✅ **Fast Updates** - Chat dans litière : **30 secondes** ⚡ / Autres : 5 minutes
 - ✅ **HomeKit Support** - Compatible avec HomeKit Bridge + Siri
-- ✅ **Auto Token Refresh** - Renouvellement automatique du token
+- ✅ **Auto Token Refresh** - Renouvellement automatique avec retry intelligent
 
-### 📊 Total: ~40 entités par installation
-- 22 sensors (état, poids, utilisations, versions, pet info, etc.)
-- 10 binary_sensors (connectivité, modes, erreurs, présence chat)
-- 4 buttons (contrôle manuel)
-- 4 switches (contrôle HomeKit)
+### 📊 Total: ~20 entités par installation
+- 6 sensors (poids, usage, erreurs, firmware, pet info)
+- 5 binary_sensors (chat détecté 30s, bac plein, connectivité, sécurité, sommeil)
+- 1 button (nettoyage manuel)
+- 4 switches HomeKit (contrôles essentiels)
 - 1+ pet sensors (un par chat)
+
+> 📝 **Voir [CLEANUP_CHANGES.md](docs/CLEANUP_CHANGES.md)** pour le détail des modifications v1.3.0
 
 ---
 
@@ -48,6 +48,7 @@ Intégration complète pour les litières connectées **Furbulous Cat** dans Hom
 ### Option 2: Installation manuelle
 
 1. **Copier les fichiers**
+```
    ```bash
    cd /path/to/homeassistant/config
    mkdir -p custom_components

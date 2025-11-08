@@ -29,30 +29,29 @@ async def async_setup_entry(
     coordinator = coordinators["coordinator"]
 
     buttons = []
+    # Boutons de contrôle du nettoyage manuel
     for device in coordinator.data.get("devices", []):
-        # Add manual clean button
         buttons.append(FurbulousCatManualCleanButton(coordinator, device))
-        # Add dump button
+        buttons.append(FurbulousCatPauseCleanButton(coordinator, device))
+        buttons.append(FurbulousCatResumeCleanButton(coordinator, device))
         buttons.append(FurbulousCatDumpButton(coordinator, device))
-        # Add auto-pack button
-        buttons.append(FurbulousCatAutoPackButton(coordinator, device))
-        # Add DND toggle button
-        buttons.append(FurbulousCatDNDButton(coordinator, device))
+        buttons.append(FurbulousCatPackButton(coordinator, device))
 
     async_add_entities(buttons)
 
 
-class FurbulousCatManualCleanButton(ButtonEntity):
+class FurbulousCatManualCleanButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat manual clean button."""
 
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
         """Initialize the button."""
+        super().__init__(coordinator)
         self.coordinator = coordinator
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_manual_clean"
-        self._attr_name = f"{device['name']} Manual Clean"
+        self._attr_name = f"{device['name']} Nettoyage Manuel"
         self._attr_icon = "mdi:broom"
         self._attr_device_info = get_device_info(device)
 
@@ -60,29 +59,111 @@ class FurbulousCatManualCleanButton(ButtonEntity):
         """Handle the button press - start manual cleaning."""
         iotid = self.device_data["iotid"]
         
-        # Set handMode to 1 to trigger manual clean
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"handMode": 1}
-        )
+        _LOGGER.info("🧹 Manual clean button pressed for device %s", iotid)
         
-        if success:
-            _LOGGER.info("Manual cleaning started for device %s", iotid)
-            # Refresh coordinator data
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to start manual cleaning for device %s", iotid)
+        try:
+            # Utiliser set_device_property avec handMode: 1
+            # Le payload sera: {"iotid": "...", "items": {"handMode": 1}}
+            success = await self.hass.async_add_executor_job(
+                self.coordinator.api.set_device_property,
+                iotid,
+                {"handMode": 1}
+            )
+            
+            if success:
+                _LOGGER.info("✅ Manual cleaning successfully started for device %s", iotid)
+                # Refresh coordinator data immediately to see the change
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("❌ Failed to start manual cleaning for device %s", iotid)
+        except Exception as err:
+            _LOGGER.error("❌ Exception during manual clean for device %s: %s", iotid, err, exc_info=True)
 
 
-class FurbulousCatDumpButton(ButtonEntity):
+class FurbulousCatPauseCleanButton(CoordinatorEntity, ButtonEntity):
+    """Representation of a Furbulous Cat pause cleaning button."""
+
+    def __init__(
+        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
+    ) -> None:
+        """Initialize the button."""
+        super().__init__(coordinator)
+        self.coordinator = coordinator
+        self.device_data = device
+        self._attr_unique_id = f"{device['iotid']}_pause_clean"
+        self._attr_name = f"{device['name']} Pause Nettoyage"
+        self._attr_icon = "mdi:pause"
+        self._attr_device_info = get_device_info(device)
+
+    async def async_press(self) -> None:
+        """Handle the button press - pause manual cleaning."""
+        iotid = self.device_data["iotid"]
+        
+        _LOGGER.info("⏸️ Pause clean button pressed for device %s", iotid)
+        
+        try:
+            # handMode: 4 = Pause
+            success = await self.hass.async_add_executor_job(
+                self.coordinator.api.set_device_property,
+                iotid,
+                {"handMode": 4}
+            )
+            
+            if success:
+                _LOGGER.info("✅ Cleaning paused for device %s", iotid)
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("❌ Failed to pause cleaning for device %s", iotid)
+        except Exception as err:
+            _LOGGER.error("❌ Exception during pause for device %s: %s", iotid, err, exc_info=True)
+
+
+class FurbulousCatResumeCleanButton(CoordinatorEntity, ButtonEntity):
+    """Representation of a Furbulous Cat resume cleaning button."""
+
+    def __init__(
+        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
+    ) -> None:
+        """Initialize the button."""
+        super().__init__(coordinator)
+        self.coordinator = coordinator
+        self.device_data = device
+        self._attr_unique_id = f"{device['iotid']}_resume_clean"
+        self._attr_name = f"{device['name']} Reprendre Nettoyage"
+        self._attr_icon = "mdi:play"
+        self._attr_device_info = get_device_info(device)
+
+    async def async_press(self) -> None:
+        """Handle the button press - resume manual cleaning."""
+        iotid = self.device_data["iotid"]
+        
+        _LOGGER.info("▶️ Resume clean button pressed for device %s", iotid)
+        
+        try:
+            # handMode: 5 = Resume
+            success = await self.hass.async_add_executor_job(
+                self.coordinator.api.set_device_property,
+                iotid,
+                {"handMode": 5}
+            )
+            
+            if success:
+                _LOGGER.info("✅ Cleaning resumed for device %s", iotid)
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("❌ Failed to resume cleaning for device %s", iotid)
+        except Exception as err:
+            _LOGGER.error("❌ Exception during resume for device %s: %s", iotid, err, exc_info=True)
+
+
+class FurbulousCatDumpButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat dump/empty button."""
 
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
         """Initialize the button."""
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_dump"
         self._attr_name = f"{device['name']} Vider"
@@ -90,96 +171,58 @@ class FurbulousCatDumpButton(ButtonEntity):
         self._attr_device_info = get_device_info(device)
 
     async def async_press(self) -> None:
-        """Handle the button press - start dump/empty mode."""
+        """Handle the button press - dump/empty litter box."""
         iotid = self.device_data["iotid"]
+        _LOGGER.info("🗑️ Dump button pressed for device %s", iotid)
         
-        # Set handMode to 2 to trigger dump mode
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"handMode": 2}
-        )
-        
-        if success:
-            _LOGGER.info("Dump mode started for device %s", iotid)
-            # Refresh coordinator data
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to start dump mode for device %s", iotid)
+        try:
+            # Set handMode to 2 to trigger dump mode
+            success = await self.hass.async_add_executor_job(
+                self.coordinator.api.set_device_property,
+                iotid,
+                {"handMode": 2}
+            )
+            
+            if success:
+                _LOGGER.info("✅ Dump started for device %s", iotid)
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("❌ Failed to dump for device %s", iotid)
+        except Exception as err:
+            _LOGGER.error("❌ Exception during dump for device %s: %s", iotid, err, exc_info=True)
 
 
-class FurbulousCatAutoPackButton(ButtonEntity):
-    """Representation of a Furbulous Cat auto-pack button."""
+class FurbulousCatPackButton(CoordinatorEntity, ButtonEntity):
+    """Representation of a Furbulous Cat pack bag button."""
 
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
         """Initialize the button."""
-        self.coordinator = coordinator
+        super().__init__(coordinator)
         self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_auto_pack"
-        self._attr_name = f"{device['name']} Emballage automatique"
-        self._attr_icon = "mdi:package-variant-closed"
+        self._attr_unique_id = f"{device['iotid']}_pack"
+        self._attr_name = f"{device['name']} Emballer"
+        self._attr_icon = "mdi:package"
         self._attr_device_info = get_device_info(device)
 
     async def async_press(self) -> None:
-        """Handle the button press - start auto-pack mode."""
+        """Handle the button press - pack the waste bag."""
         iotid = self.device_data["iotid"]
+        _LOGGER.info("📦 Pack button pressed for device %s", iotid)
         
-        # Set handMode to 3 to trigger auto-pack mode
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"handMode": 3}
-        )
-        
-        if success:
-            _LOGGER.info("Auto-pack mode started for device %s", iotid)
-            # Refresh coordinator data
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to start auto-pack mode for device %s", iotid)
-
-
-class FurbulousCatDNDButton(ButtonEntity):
-    """Representation of a Furbulous Cat Do Not Disturb toggle button."""
-
-    def __init__(
-        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
-    ) -> None:
-        """Initialize the button."""
-        self.coordinator = coordinator
-        self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_dnd_toggle"
-        self._attr_name = f"{device['name']} Toggle Do Not Disturb"
-        self._attr_icon = "mdi:bell-off"
-        self._attr_device_info = get_device_info(device)
-
-    async def async_press(self) -> None:
-        """Handle the button press - toggle DND mode."""
-        iotid = self.device_data["iotid"]
-        
-        # Get current DND state
-        current_dnd = self.device_data.get("is_disturb", 0)
-        new_dnd = 0 if current_dnd == 1 else 1
-        
-        # Toggle DND mode
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_disturb,
-            iotid,
-            bool(new_dnd)
-        )
-        
-        if success:
-            _LOGGER.info("DND mode toggled for device %s: %s", iotid, bool(new_dnd))
-            # Refresh coordinator data
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to toggle DND mode for device %s", iotid)
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the state attributes."""
-        return {
-            "current_dnd_state": "on" if self.device_data.get("is_disturb", 0) == 1 else "off"
-        }
+        try:
+            # Set handMode to 3 to trigger pack mode
+            success = await self.hass.async_add_executor_job(
+                self.coordinator.api.set_device_property,
+                iotid,
+                {"handMode": 3}
+            )
+            
+            if success:
+                _LOGGER.info("✅ Pack started for device %s", iotid)
+                await self.coordinator.async_request_refresh()
+            else:
+                _LOGGER.error("❌ Failed to pack for device %s", iotid)
+        except Exception as err:
+            _LOGGER.error("❌ Exception during pack for device %s: %s", iotid, err, exc_info=True)

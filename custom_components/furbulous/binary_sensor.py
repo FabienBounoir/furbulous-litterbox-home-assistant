@@ -35,37 +35,24 @@ async def async_setup_entry(
         
         if iotid:
             entities.extend([
-                # Device online status
+                # 1. Device online status
                 FurbulousCatOnlineBinarySensor(coordinator, device_id),
                 
-                # Cat in box sensor (FAST UPDATE - 30 seconds)
+                # 2. Cat in box sensor (FAST UPDATE - 30 seconds)
                 FurbulousCatInBoxSensor(fast_coordinator, device_id),
                 
-                # Property-based binary sensors
-                FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "FullAutoModeSwitch", "Mode auto complet", "running"
-                ),
-                FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "catCleanOnOff", "Nettoyage automatique", "running"
-                ),
+                # 3. Waste bin full sensor
+                FurbulousCatWasteBinFullSensor(coordinator, device_id),
+                
+                # 4. Child lock (seul capteur binaire de sécurité nécessaire)
                 FurbulousCatPropertyBinarySensor(
                     coordinator, device_id, "childLockOnOff", "Verrouillage enfant", "lock"
                 ),
+                
+                # 5. Sleep mode (mode Ne Pas Déranger)
                 FurbulousCatPropertyBinarySensor(
                     coordinator, device_id, "masterSleepOnOff", "Mode sommeil", "running"
                 ),
-                FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "DisplaySwitch", "Affichage", "power"
-                ),
-                FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "handMode", "Mode manuel", "running"
-                ),
-                
-                # Error sensor
-                FurbulousCatErrorBinarySensor(coordinator, device_id),
-                
-                # Waste bin full sensor (NEW)
-                FurbulousCatWasteBinFullSensor(coordinator, device_id),
             ])
     
     async_add_entities(entities)

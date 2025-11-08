@@ -129,13 +129,14 @@ class FurbulousCatAPI:
             "sign": sign,
         }
 
-    def _make_authenticated_request(self, endpoint: str, method: str = "GET", data: dict = None) -> dict:
-        """Make an authenticated request to the API.
+    def _make_authenticated_request(self, endpoint: str, method: str = "GET", data: dict = None, retry_count: int = 0) -> dict:
+        """Make an authenticated request to the API with improved retry logic.
         
         Args:
             endpoint: Full endpoint URL including query parameters
             method: HTTP method (GET or POST)
             data: JSON data for POST requests
+            retry_count: Internal counter for retry attempts
         """
         if not self.token:
             self.authenticate()
@@ -145,13 +146,15 @@ class FurbulousCatAPI:
         base_endpoint = endpoint.split('?')[0]
         headers = self._get_headers(base_endpoint)
         
+        max_retries = 3
+        
         try:
             if method == "GET":
-                response = self.session.get(url, headers=headers, timeout=10)
+                response = self.session.get(url, headers=headers, timeout=15)
             elif method == "POST":
-                response = self.session.post(url, headers=headers, json=data or {}, timeout=10)
+                response = self.session.post(url, headers=headers, json=data or {}, timeout=15)
             elif method == "PUT":
-                response = self.session.put(url, headers=headers, json=data or {}, timeout=10)
+                response = self.session.put(url, headers=headers, json=data or {}, timeout=15)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
@@ -161,52 +164,62 @@ class FurbulousCatAPI:
             # Check if the response indicates success
             if result.get("code") != 0:
                 error_message = result.get("message", "")
-                _LOGGER.warning("API returned error code %s: %s", result.get("code"), error_message)
+                error_code = result.get("code")
+                _LOGGER.warning("API returned error code %s: %s", error_code, error_message)
                 
-                # Check for token expiration/invalid token errors
-                # "无效的 Token" = Invalid Token in Chinese
-                # Also check for common auth error codes
+                # AMÉLIORATION: Détection robuste des erreurs de token
+                # Code 10403 = "无效的 Token" (Invalid Token)
                 is_token_error = (
+                    error_code in [401, 403, 10401, 10402, 10403] or  # Auth error codes
                     "token" in error_message.lower() or 
                     "无效的" in error_message or  # Invalid in Chinese
                     "Token" in error_message or
-                    result.get("code") in [401, 10401, 10402]  # Common auth error codes
+                    "expired" in error_message.lower() or
+                    "unauthor" in error_message.lower()
                 )
                 
-                if is_token_error:
-                    _LOGGER.info("Token expired or invalid, re-authenticating...")
+                if is_token_error and retry_count < max_retries:
+                    _LOGGER.info("Token expired or invalid (code: %s), re-authenticating... (attempt %d/%d)", 
+                                error_code, retry_count + 1, max_retries)
+                    # Force new authentication
+                    self.token = None
                     self.authenticate()
-                    # Retry once with new token
-                    headers = self._get_headers(base_endpoint)
-                    if method == "GET":
-                        response = self.session.get(url, headers=headers, timeout=10)
-                    elif method == "POST":
-                        response = self.session.post(url, headers=headers, json=data or {}, timeout=10)
-                    elif method == "PUT":
-                        response = self.session.put(url, headers=headers, json=data or {}, timeout=10)
-                    result = response.json()
-                    
-                    if result.get("code") != 0:
-                        _LOGGER.error("Request failed even after re-authentication: %s", result.get("message"))
+                    # Retry with exponential backoff
+                    wait_time = 2 ** retry_count
+                    _LOGGER.debug("Waiting %d seconds before retry...", wait_time)
+                    time.sleep(wait_time)
+                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
             
             return result
 
+        except requests.exceptions.Timeout as err:
+            _LOGGER.warning("Request timeout for %s (attempt %d/%d): %s", endpoint, retry_count + 1, max_retries, err)
+            if retry_count < max_retries:
+                wait_time = 2 ** retry_count
+                _LOGGER.debug("Retrying after %d seconds...", wait_time)
+                time.sleep(wait_time)
+                return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
+            raise
+            
         except requests.exceptions.RequestException as err:
-            _LOGGER.error("Error making authenticated request to %s: %s", endpoint, err)
+            _LOGGER.error("Error making authenticated request to %s (attempt %d/%d): %s", endpoint, retry_count + 1, max_retries, err)
             
             # Retry authentication if we get a 401
             if hasattr(err, 'response') and err.response is not None and err.response.status_code == 401:
-                _LOGGER.info("Got 401 error, re-authenticating...")
-                self.authenticate()
-                # Retry the request once
-                headers = self._get_headers(base_endpoint)
-                if method == "GET":
-                    response = self.session.get(url, headers=headers, timeout=10)
-                elif method == "POST":
-                    response = self.session.post(url, headers=headers, json=data or {}, timeout=10)
-                elif method == "PUT":
-                    response = self.session.put(url, headers=headers, json=data or {}, timeout=10)
-                return response.json()
+                if retry_count < max_retries:
+                    _LOGGER.info("Got 401 error, re-authenticating... (attempt %d/%d)", retry_count + 1, max_retries)
+                    self.token = None
+                    self.authenticate()
+                    wait_time = 2 ** retry_count
+                    time.sleep(wait_time)
+                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
+            
+            # Retry on network errors
+            if retry_count < max_retries and isinstance(err, (requests.exceptions.ConnectionError, requests.exceptions.HTTPError)):
+                wait_time = 2 ** retry_count
+                _LOGGER.info("Network error, retrying after %d seconds... (attempt %d/%d)", wait_time, retry_count + 1, max_retries)
+                time.sleep(wait_time)
+                return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
             
             raise
 
@@ -263,6 +276,32 @@ class FurbulousCatAPI:
             # Return empty dict instead of raising - properties are optional
             return {}
 
+    def get_device_daily_stats(self, iotid: str) -> dict[str, Any]:
+        """Get daily statistics for a specific device.
+        
+        Returns data from /app/v1/device/data/wcheader endpoint:
+        - times: Number of times used today
+        - avg_duration: Average duration in seconds
+        - times_diff: Difference from previous day
+        - avg_diff: Average duration difference from previous day
+        """
+        try:
+            endpoint = f"/app/v1/device/data/wcheader?iotid={iotid}"
+            result = self._make_authenticated_request(endpoint)
+            
+            if result.get("code") == 0:
+                stats = result.get("data", {})
+                _LOGGER.debug("Retrieved daily stats for device %s: %s", iotid, stats)
+                return stats
+            else:
+                _LOGGER.warning("Failed to get daily stats for device %s: %s (code: %s)", 
+                              iotid, result.get("message"), result.get("code"))
+                return {}
+                
+        except Exception as err:
+            _LOGGER.warning("Error getting daily stats for device %s: %s", iotid, err)
+            return {}
+
     def set_device_property(self, iotid: str, properties: dict[str, Any]) -> bool:
         """Set device properties.
         
@@ -274,22 +313,26 @@ class FurbulousCatAPI:
             True if successful
             
         Example:
-            api.set_device_property("849DC2F4F30B", {"childLockOnOff": 1})
+            api.set_device_property("873Ef2f3f34l", {"childLockOnOff": 1})
         """
         try:
             endpoint = "/app/v1/device/properties/set"
+            # CORRECTION: Les propriétés doivent être dans un objet "items"
             payload = {
                 "iotid": iotid,
-                **properties
+                "items": properties
             }
             
             result = self._make_authenticated_request(endpoint, method="POST", data=payload)
             
             if result.get("code") == 0:
-                _LOGGER.info("Successfully set properties for %s: %s", iotid, properties)
+                success_msg = result.get("message", "Success")
+                _LOGGER.info("✅ Successfully set properties for %s: %s (API response: %s)", 
+                           iotid, properties, success_msg)
                 return True
             else:
-                _LOGGER.error("Failed to set properties for %s: %s", iotid, result.get("message"))
+                _LOGGER.error("❌ Failed to set properties for %s: code=%s, message=%s", 
+                            iotid, result.get("code"), result.get("message"))
                 return False
                 
         except Exception as err:
@@ -382,13 +425,16 @@ class FurbulousCatAPI:
         """Get data from the Furbulous Cat API."""
         devices = self.get_devices()
         
-        # Get properties for each device
+        # Get properties and daily stats for each device
         devices_with_properties = []
         for device in devices:
             iotid = device.get("iotid")
             if iotid:
                 properties = self.get_device_properties(iotid)
                 device["properties"] = properties
+                # Get daily stats from wcheader endpoint
+                daily_stats = self.get_device_daily_stats(iotid)
+                device["daily_stats"] = daily_stats
             devices_with_properties.append(device)
         
         # Get pets information

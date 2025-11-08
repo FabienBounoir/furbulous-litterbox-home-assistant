@@ -92,7 +92,7 @@ git commit -m "Initial commit v1.0.0 - HomeKit Support"
 ### Créer la branche main et push
 ```bash
 git branch -M main
-git remote add origin https://github.com/fabienbounoir/furbulous-ha.git
+git remote add origin https://github.com/FabienBounoir/furbulous-litterbox-home-assistant.git
 git push -u origin main
 ```
 

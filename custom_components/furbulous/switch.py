@@ -32,70 +32,12 @@ async def async_setup_entry(
     for device in coordinator.data.get("devices", []):
         # Add switches for HomeKit compatibility
         switches.extend([
-            FurbulousCatAutoCleanSwitch(coordinator, device),
             FurbulousCatFullAutoModeSwitch(coordinator, device),
             FurbulousCatDNDSwitch(coordinator, device),
             FurbulousCatChildLockSwitch(coordinator, device),
         ])
 
     async_add_entities(switches)
-
-
-class FurbulousCatAutoCleanSwitch(CoordinatorEntity, SwitchEntity):
-    """Switch for auto cleaning mode - HomeKit compatible."""
-
-    def __init__(
-        self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
-    ) -> None:
-        """Initialize the switch."""
-        super().__init__(coordinator)
-        self.device_data = device
-        self._attr_unique_id = f"{device['iotid']}_auto_clean_switch"
-        self._attr_name = f"{device['name']} - Nettoyage automatique"
-        self._attr_icon = "mdi:robot-vacuum"
-        self._attr_device_info = get_device_info(device)
-
-    @property
-    def is_on(self) -> bool:
-        """Return true if auto clean is on."""
-        devices = self.coordinator.data.get("devices", [])
-        for device in devices:
-            if device.get("iotid") == self.device_data["iotid"]:
-                properties = device.get("properties", {})
-                prop = properties.get("catCleanOnOff")
-                if prop:
-                    if isinstance(prop, dict):
-                        return prop.get("value", 0) == 1
-                    return prop == 1
-        return False
-
-    async def async_turn_on(self, **kwargs: Any) -> None:
-        """Turn on auto clean."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"catCleanOnOff": 1}
-        )
-        if success:
-            _LOGGER.info("Auto clean enabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to enable auto clean for device %s", iotid)
-
-    async def async_turn_off(self, **kwargs: Any) -> None:
-        """Turn off auto clean."""
-        iotid = self.device_data["iotid"]
-        success = await self.hass.async_add_executor_job(
-            self.coordinator.api.set_device_property,
-            iotid,
-            {"catCleanOnOff": 0}
-        )
-        if success:
-            _LOGGER.info("Auto clean disabled for device %s", iotid)
-            await self.coordinator.async_request_refresh()
-        else:
-            _LOGGER.error("Failed to disable auto clean for device %s", iotid)
 
 
 class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):

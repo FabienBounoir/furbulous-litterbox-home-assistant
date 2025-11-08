@@ -41,8 +41,6 @@ async def async_setup_entry(
         
         # Basic sensors
         entities.extend([
-            FurbulousCatDeviceSensor(coordinator, device_id, "status"),
-            FurbulousCatDeviceSensor(coordinator, device_id, "online"),
             FurbulousCatDeviceSensor(coordinator, device_id, "last_active"),
         ])
         
@@ -51,38 +49,12 @@ async def async_setup_entry(
             entities.extend([
                 # Weight and usage
                 FurbulousCatPropertySensor(coordinator, device_id, "catWeight", "Poids du chat"),
-                FurbulousCatPropertySensor(coordinator, device_id, "excreteTimesEveryday", "Utilisations quotidiennes"),
-                FurbulousCatPropertySensor(coordinator, device_id, "excreteTimerEveryday", "Durée quotidienne"),
+                FurbulousCatDailyStatsSensor(coordinator, device_id, "times", "Utilisations quotidiennes"),
+                FurbulousCatDailyStatsSensor(coordinator, device_id, "avg_duration", "Durée moyenne quotidienne"),
                 
-                # Status sensors
-                FurbulousCatPropertySensor(coordinator, device_id, "workstatus", "État de fonctionnement"),
+                # Status
                 FurbulousCatPropertySensor(coordinator, device_id, "errorReportEvent", "Erreur"),
-                FurbulousCatPropertySensor(coordinator, device_id, "completionStatus", "Statut de complétude"),
-                
-                # Settings sensors
-                FurbulousCatPropertySensor(coordinator, device_id, "catLitterType", "Type de litière"),
-                FurbulousCatPropertySensor(coordinator, device_id, "FullAutoModeSwitch", "Mode auto complet"),
-                FurbulousCatPropertySensor(coordinator, device_id, "catCleanOnOff", "Nettoyage auto"),
-                FurbulousCatPropertySensor(coordinator, device_id, "childLockOnOff", "Verrouillage enfant"),
-                FurbulousCatPropertySensor(coordinator, device_id, "masterSleepOnOff", "Mode sommeil"),
-                FurbulousCatPropertySensor(coordinator, device_id, "DisplaySwitch", "Affichage"),
-                FurbulousCatPropertySensor(coordinator, device_id, "handMode", "Mode manuel"),
-                
-                # Version sensors
-                FurbulousCatPropertySensor(coordinator, device_id, "mcuversion", "Version MCU"),
-                FurbulousCatPropertySensor(coordinator, device_id, "wifivertion", "Version WiFi"),
-                FurbulousCatPropertySensor(coordinator, device_id, "trdversion", "Version TRD"),
             ])
-    
-    # Add pet sensors
-    pets = coordinator.data.get("pets", [])
-    for pet in pets:
-        pet_id = pet.get("pet_id")
-        if pet_id:
-            entities.append(FurbulousCatPetSensor(coordinator, pet_id))
-    
-    # Add general status sensor
-    entities.append(FurbulousCatStatusSensor(coordinator))
     
     async_add_entities(entities)
 
@@ -391,94 +363,102 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
         return self.property_data is not None
 
 
-class FurbulousCatPetSensor(CoordinatorEntity, SensorEntity):
-    """Representation of a Furbulous Cat Pet sensor."""
+class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Furbulous Cat daily statistics sensor."""
 
     def __init__(
-        self, coordinator: FurbulousCatDataUpdateCoordinator, pet_id: int
+        self,
+        coordinator: FurbulousCatDataUpdateCoordinator,
+        device_id: int,
+        stat_key: str,
+        friendly_name: str,
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._pet_id = pet_id
+        self._device_id = device_id
+        self._stat_key = stat_key
+        self._friendly_name = friendly_name
+        self._attr_unique_id = f"furbulous_{device_id}_daily_{stat_key}"
         
-        # Get pet data
-        pet_data = self._get_pet_data()
-        pet_name = pet_data.get("nickname", f"Pet {pet_id}")
-        
-        self._attr_unique_id = f"furbulous_pet_{pet_id}"
-        self._attr_name = f"Furbulous Cat - {pet_name}"
-        self._attr_icon = "mdi:cat"
-
-    def _get_pet_data(self) -> dict:
-        """Get pet data from coordinator."""
-        pets = self.coordinator.data.get("pets", [])
-        for pet in pets:
-            if pet.get("pet_id") == self._pet_id:
-                return pet
-        return {}
+        # Set device info
+        device = self.device_data
+        if device:
+            self._attr_device_info = get_device_info(device)
 
     @property
-    def native_value(self) -> str:
+    def device_data(self) -> dict | None:
+        """Get the device data from coordinator."""
+        devices = self.coordinator.data.get("devices", [])
+        for device in devices:
+            if device.get("id") == self._device_id:
+                return device
+        return None
+
+    @property
+    def daily_stats_data(self) -> dict | None:
+        """Get the daily stats data from /wcheader endpoint."""
+        device = self.device_data
+        if device:
+            return device.get("daily_stats", {})
+        return None
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        device = self.device_data
+        if device:
+            device_name = device.get("name", f"Device {self._device_id}")
+            return f"{device_name} - {self._friendly_name}"
+        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
+
+    @property
+    def native_value(self) -> int | None:
         """Return the state of the sensor."""
-        pet_data = self._get_pet_data()
+        stats = self.daily_stats_data
+        if not stats:
+            return None
         
-        # Return pet name as state
-        return pet_data.get("nickname", "Unknown")
+        value = stats.get(self._stat_key)
+        return int(value) if value is not None else None
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Return the unit of measurement."""
+        if self._stat_key == "times":
+            return "fois"
+        elif self._stat_key == "avg_duration":
+            return "s"
+        return None
+
+    @property
+    def icon(self) -> str:
+        """Return the icon."""
+        if self._stat_key == "times":
+            return "mdi:counter"
+        elif self._stat_key == "avg_duration":
+            return "mdi:timer-outline"
+        return "mdi:information-outline"
 
     @property
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
-        pet_data = self._get_pet_data()
-        
-        if not pet_data:
+        stats = self.daily_stats_data
+        if not stats:
             return {}
-        
+
         attrs = {
-            "pet_id": self._pet_id,
-            "name": pet_data.get("nickname"),
-            "gender": self._get_gender_label(pet_data.get("gender")),
-            "birthday_timestamp": pet_data.get("date"),
-            "age": pet_data.get("age"),
-            "breed": pet_data.get("variety"),
-            "weight": pet_data.get("weight"),
-            "avatar": pet_data.get("avatar"),
-            "food_brand": pet_data.get("food_brand"),
-            "sterilization": "Yes" if pet_data.get("sterilization") == 1 else "No",
-            "pet_type": self._get_pet_type_label(pet_data.get("pet_type")),
+            "stat_key": self._stat_key,
         }
         
-        # Calculate age if birthday timestamp is available
-        if pet_data.get("date"):
-            try:
-                from datetime import datetime
-                birthday = datetime.fromtimestamp(pet_data.get("date"))
-                age_days = (datetime.now() - birthday).days
-                attrs["birthday"] = birthday.strftime("%Y-%m-%d")
-                attrs["age_days"] = age_days
-            except:
-                pass
+        # Add diff values if available
+        if self._stat_key == "times" and "times_diff" in stats:
+            attrs["difference_from_yesterday"] = stats["times_diff"]
+        elif self._stat_key == "avg_duration" and "avg_diff" in stats:
+            attrs["difference_from_yesterday"] = stats["avg_diff"]
         
         return attrs
-    
-    def _get_gender_label(self, gender: int) -> str:
-        """Convert gender code to label."""
-        gender_map = {
-            1: "Male",
-            2: "Female",
-            0: "Unknown"
-        }
-        return gender_map.get(gender, "Unknown")
-    
-    def _get_pet_type_label(self, pet_type: int) -> str:
-        """Convert pet type code to label."""
-        type_map = {
-            1: "Cat",
-            2: "Dog",
-            0: "Other"
-        }
-        return type_map.get(pet_type, "Unknown")
 
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        return bool(self._get_pet_data())
+        return self.daily_stats_data is not None

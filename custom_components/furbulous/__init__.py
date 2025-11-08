@@ -18,31 +18,22 @@ from .furbulous_api import FurbulousCatAPI, FurbulousCatAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SWITCH]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SWITCH, Platform.SELECT]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Furbulous Cat from a config entry."""
-    # Check if using token directly or email/password
-    if "token" in entry.data:
-        api = FurbulousCatAPI(
-            email="",
-            password="",
-            account_type=1,
-            token=entry.data["token"]
-        )
-        # No need to authenticate, token is already set
-    else:
-        api = FurbulousCatAPI(
-            email=entry.data.get("email"),
-            password=entry.data.get("password"),
-            account_type=entry.data.get("account_type", 1)
-        )
-        
-        try:
-            await hass.async_add_executor_job(api.authenticate)
-        except FurbulousCatAuthError as err:
-            raise ConfigEntryAuthFailed from err
+    # Use email/password authentication with account_type = 1
+    api = FurbulousCatAPI(
+        email=entry.data.get("email"),
+        password=entry.data.get("password"),
+        account_type=entry.data.get("account_type", 1)
+    )
+    
+    try:
+        await hass.async_add_executor_job(api.authenticate)
+    except FurbulousCatAuthError as err:
+        raise ConfigEntryAuthFailed from err
 
     # Coordinateur normal (5 minutes) pour les données générales
     coordinator = FurbulousCatDataUpdateCoordinator(hass, api)
