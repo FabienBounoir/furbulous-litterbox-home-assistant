@@ -81,3 +81,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Decompiled/downloaded apps (reverse engineering inputs)
+*.apk
+*.xapk

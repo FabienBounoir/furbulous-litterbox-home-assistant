@@ -2,22 +2,119 @@
     "config": {
         "step": {
             "user": {
-                "title": "Configurer Furbulous Cat",
-                "description": "Connectez-vous avec vos identifiants Furbulous Cat",
+                "title": "Set up Furbulous Cat",
+                "description": "Sign in with your Furbulous app account. Note: the account allows one session at a time — opening the phone app pauses Home Assistant for 5 minutes.",
                 "data": {
                     "email": "Email",
-                    "password": "Mot de passe",
-                    "account_type": "Type de compte"
+                    "password": "Password",
+                    "region": "Server region"
                 }
             }
         },
         "error": {
-            "invalid_auth": "Identifiants invalides",
-            "cannot_connect": "Impossible de se connecter à l'API",
-            "unknown": "Erreur inattendue"
+            "invalid_auth": "Invalid credentials",
+            "cannot_connect": "Unable to reach the API",
+            "unknown": "Unexpected error",
+            "missing_credentials": "Email and password are required"
         },
         "abort": {
-            "already_configured": "Ce compte est déjà configuré"
+            "already_configured": "This account is already configured"
+        }
+    },
+    "selector": {
+        "region": {
+            "options": {
+                "eu": "Europe",
+                "us": "Americas",
+                "ap": "Asia-Pacific",
+                "cn": "China"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "last_active": {
+                "name": "Last activity"
+            },
+            "cat_weight": {
+                "name": "Cat weight"
+            },
+            "daily_uses": {
+                "name": "Daily uses"
+            },
+            "daily_avg_duration": {
+                "name": "Average daily duration"
+            },
+            "error": {
+                "name": "Error"
+            },
+            "status": {
+                "name": "Status"
+            },
+            "last_notification": {
+                "name": "Last notification"
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connected"
+            },
+            "cat_in_box": {
+                "name": "Cat in litter box"
+            },
+            "cat_nearby": {
+                "name": "Cat in front of litter box"
+            },
+            "waste_bin_full": {
+                "name": "Waste bin full"
+            },
+            "child_lock": {
+                "name": "Child lock"
+            },
+            "sleep_mode": {
+                "name": "Sleep mode"
+            },
+            "error": {
+                "name": "Error"
+            }
+        },
+        "button": {
+            "manual_clean": {
+                "name": "Manual clean"
+            },
+            "pause_clean": {
+                "name": "Pause cleaning"
+            },
+            "resume_clean": {
+                "name": "Resume cleaning"
+            },
+            "dump": {
+                "name": "Empty litter"
+            },
+            "pack": {
+                "name": "Pack waste"
+            }
+        },
+        "switch": {
+            "full_auto_mode": {
+                "name": "Full auto mode"
+            },
+            "dnd": {
+                "name": "Do not disturb"
+            },
+            "child_lock": {
+                "name": "Child lock"
+            }
+        },
+        "select": {
+            "clean_delay": {
+                "name": "Cleaning delay"
+            }
+        },
+        "update": {
+            "firmware": {
+                "name": "Firmware"
+            }
         }
     }
 }

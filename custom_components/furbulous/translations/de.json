@@ -1,0 +1,120 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Furbulous Cat einrichten",
+                "description": "Melde dich mit deinem Furbulous-App-Konto an. Hinweis: Das Konto erlaubt nur eine Sitzung gleichzeitig — das Öffnen der Handy-App pausiert Home Assistant für 5 Minuten.",
+                "data": {
+                    "email": "E-Mail",
+                    "password": "Passwort",
+                    "region": "Serverregion"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Ungültige Anmeldedaten",
+            "cannot_connect": "API nicht erreichbar",
+            "unknown": "Unerwarteter Fehler",
+            "missing_credentials": "E-Mail und Passwort erforderlich"
+        },
+        "abort": {
+            "already_configured": "Dieses Konto ist bereits eingerichtet"
+        }
+    },
+    "selector": {
+        "region": {
+            "options": {
+                "eu": "Europa",
+                "us": "Amerika",
+                "ap": "Asien-Pazifik",
+                "cn": "China"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "last_active": {
+                "name": "Letzte Aktivität"
+            },
+            "cat_weight": {
+                "name": "Katzengewicht"
+            },
+            "daily_uses": {
+                "name": "Tägliche Nutzungen"
+            },
+            "daily_avg_duration": {
+                "name": "Durchschnittliche Tagesdauer"
+            },
+            "error": {
+                "name": "Fehler"
+            },
+            "status": {
+                "name": "Status"
+            },
+            "last_notification": {
+                "name": "Letzte Benachrichtigung"
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Verbunden"
+            },
+            "cat_in_box": {
+                "name": "Katze in der Toilette"
+            },
+            "cat_nearby": {
+                "name": "Katze vor der Toilette"
+            },
+            "waste_bin_full": {
+                "name": "Abfallbehälter voll"
+            },
+            "child_lock": {
+                "name": "Kindersicherung"
+            },
+            "sleep_mode": {
+                "name": "Schlafmodus"
+            },
+            "error": {
+                "name": "Fehler"
+            }
+        },
+        "button": {
+            "manual_clean": {
+                "name": "Manuelle Reinigung"
+            },
+            "pause_clean": {
+                "name": "Reinigung pausieren"
+            },
+            "resume_clean": {
+                "name": "Reinigung fortsetzen"
+            },
+            "dump": {
+                "name": "Streu leeren"
+            },
+            "pack": {
+                "name": "Abfall verpacken"
+            }
+        },
+        "switch": {
+            "full_auto_mode": {
+                "name": "Vollautomatik"
+            },
+            "dnd": {
+                "name": "Nicht stören"
+            },
+            "child_lock": {
+                "name": "Kindersicherung"
+            }
+        },
+        "select": {
+            "clean_delay": {
+                "name": "Reinigungsverzögerung"
+            }
+        },
+        "update": {
+            "firmware": {
+                "name": "Firmware"
+            }
+        }
+    }
+}

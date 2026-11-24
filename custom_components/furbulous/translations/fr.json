@@ -1,0 +1,120 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configurer Furbulous Cat",
+                "description": "Connectez-vous avec votre compte de l'application Furbulous. Attention : le compte n'autorise qu'une session à la fois — ouvrir l'app sur le téléphone met Home Assistant en pause 5 minutes.",
+                "data": {
+                    "email": "Email",
+                    "password": "Mot de passe",
+                    "region": "Région du serveur"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Identifiants invalides",
+            "cannot_connect": "Impossible de joindre l'API",
+            "unknown": "Erreur inattendue",
+            "missing_credentials": "Email et mot de passe requis"
+        },
+        "abort": {
+            "already_configured": "Ce compte est déjà configuré"
+        }
+    },
+    "selector": {
+        "region": {
+            "options": {
+                "eu": "Europe",
+                "us": "Amériques",
+                "ap": "Asie-Pacifique",
+                "cn": "Chine"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "last_active": {
+                "name": "Dernière activité"
+            },
+            "cat_weight": {
+                "name": "Poids du chat"
+            },
+            "daily_uses": {
+                "name": "Utilisations quotidiennes"
+            },
+            "daily_avg_duration": {
+                "name": "Durée moyenne quotidienne"
+            },
+            "error": {
+                "name": "Erreur"
+            },
+            "status": {
+                "name": "État"
+            },
+            "last_notification": {
+                "name": "Dernière notification"
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connecté"
+            },
+            "cat_in_box": {
+                "name": "Chat dans la litière"
+            },
+            "cat_nearby": {
+                "name": "Chat devant la litière"
+            },
+            "waste_bin_full": {
+                "name": "Bac à déchets plein"
+            },
+            "child_lock": {
+                "name": "Verrouillage enfant"
+            },
+            "sleep_mode": {
+                "name": "Mode sommeil"
+            },
+            "error": {
+                "name": "Erreur"
+            }
+        },
+        "button": {
+            "manual_clean": {
+                "name": "Nettoyage manuel"
+            },
+            "pause_clean": {
+                "name": "Pause nettoyage"
+            },
+            "resume_clean": {
+                "name": "Reprendre nettoyage"
+            },
+            "dump": {
+                "name": "Vider"
+            },
+            "pack": {
+                "name": "Emballer"
+            }
+        },
+        "switch": {
+            "full_auto_mode": {
+                "name": "Mode auto complet"
+            },
+            "dnd": {
+                "name": "Ne pas déranger"
+            },
+            "child_lock": {
+                "name": "Verrouillage enfant"
+            }
+        },
+        "select": {
+            "clean_delay": {
+                "name": "Délai de nettoyage"
+            }
+        },
+        "update": {
+            "firmware": {
+                "name": "Firmware"
+            }
+        }
+    }
+}

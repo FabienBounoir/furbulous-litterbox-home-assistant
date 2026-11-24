@@ -38,6 +38,9 @@ async def async_setup_entry(
 class FurbulousCatCleanDelaySelect(CoordinatorEntity, SelectEntity):
     """Select entity for auto-clean delay (1-30 minutes)."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "clean_delay"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -45,7 +48,6 @@ class FurbulousCatCleanDelaySelect(CoordinatorEntity, SelectEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_clean_delay"
-        self._attr_name = f"{device['name']} - Délai de nettoyage"
         self._attr_icon = "mdi:timer-outline"
         self._attr_device_info = get_device_info(device)
         

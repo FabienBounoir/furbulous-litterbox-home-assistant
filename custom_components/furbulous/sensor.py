@@ -48,24 +48,64 @@ async def async_setup_entry(
         if iotid:
             entities.extend([
                 # Weight and usage
-                FurbulousCatPropertySensor(coordinator, device_id, "catWeight", "Poids du chat"),
-                FurbulousCatDailyStatsSensor(coordinator, device_id, "times", "Utilisations quotidiennes"),
-                FurbulousCatDailyStatsSensor(coordinator, device_id, "avg_duration", "Durée moyenne quotidienne"),
+                FurbulousCatPropertySensor(coordinator, device_id, "catWeight", "cat_weight"),
+                FurbulousCatDailyStatsSensor(coordinator, device_id, "times", "daily_uses"),
+                FurbulousCatDailyStatsSensor(coordinator, device_id, "avg_duration", "daily_avg_duration"),
                 
                 # Status
-                FurbulousCatPropertySensor(coordinator, device_id, "errorReportEvent", "Erreur"),
+                FurbulousCatPropertySensor(coordinator, device_id, "errorReportEvent", "error"),
             ])
     
+    if devices:
+        entities.append(FurbulousCatNotificationSensor(coordinator, devices[0]))
+
     async_add_entities(entities)
+
+
+class FurbulousCatNotificationSensor(CoordinatorEntity, SensorEntity):
+    """Latest alert from the app's notice tab (account-wide, shown on the first device)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "last_notification"
+    _attr_icon = "mdi:bell-outline"
+
+    def __init__(self, coordinator: FurbulousCatDataUpdateCoordinator, device: dict) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"furbulous_{device.get('id')}_last_notification"
+        self._attr_device_info = get_device_info(device)
+
+    @property
+    def _latest(self) -> dict:
+        notifications = self.coordinator.data.get("notifications") or []
+        return max(notifications, key=lambda n: n.get("push_time") or 0, default={})
+
+    @property
+    def native_value(self) -> str | None:
+        # "title" is just the device name; the message ("La boîte poubelle est pleine") is in "summary"
+        text = self._latest.get("summary") or self._latest.get("title")
+        return text[:255] if text else None
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        n = self._latest
+        if not n:
+            return {}
+        return {
+            "device": n.get("title"),
+            "time": datetime.fromtimestamp(n["push_time"], tz=timezone.utc).isoformat() if n.get("push_time") else None,
+            "recent": [x.get("summary") for x in (self.coordinator.data.get("notifications") or [])[:5]],
+        }
 
 
 class FurbulousCatStatusSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Furbulous Cat status sensor."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "status"
+
     def __init__(self, coordinator: FurbulousCatDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._attr_name = "Furbulous Cat Status"
         self._attr_unique_id = f"{coordinator.api.identity_id}_status"
 
     @property
@@ -88,6 +128,8 @@ class FurbulousCatStatusSensor(CoordinatorEntity, SensorEntity):
 class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Furbulous Cat device sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: FurbulousCatDataUpdateCoordinator,
@@ -96,6 +138,7 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self._attr_translation_key = sensor_type
         self._device_id = device_id
         self._sensor_type = sensor_type
         self._attr_unique_id = f"furbulous_{device_id}_{sensor_type}"
@@ -115,20 +158,6 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            sensor_names = {
-                "status": "État",
-                "online": "Connexion",
-                "last_active": "Dernière activité",
-            }
-            return f"{device_name} - {sensor_names.get(self._sensor_type, self._sensor_type)}"
-        return f"Furbulous Device {self._device_id}"
-
-    @property
     def native_value(self) -> str | datetime | None:
         """Return the state of the sensor."""
         device = self.device_data
@@ -140,11 +169,13 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
         elif self._sensor_type == "online":
             return "En ligne" if device.get("device_online") == 1 else "Hors ligne"
         elif self._sensor_type == "last_active":
-            timestamp = device.get("active_time")
-            if timestamp:
-                # Return datetime object with UTC timezone for TIMESTAMP device class
-                return datetime.fromtimestamp(timestamp, tz=timezone.utc)
-            return None
+            # Last cat visit: live from the WebSocket, else when the API last weighed the cat.
+            # (device["active_time"] is the cloud activation date, not an activity)
+            timestamp = (
+                self.coordinator.last_visit.get(device.get("iotid"), {}).get("end")
+                or device.get("property_times", {}).get("catWeight")
+            )
+            return datetime.fromtimestamp(timestamp, tz=timezone.utc) if timestamp else None
         
         return None
 
@@ -171,6 +202,11 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
             "platform": "AWS" if device.get("platform") == 2 else "Other",
         }
 
+        if self._sensor_type == "last_active":
+            visit = self.coordinator.last_visit.get(device.get("iotid"))
+            if visit:
+                attrs.update({"duration_seconds": visit["duration"], "cat_weight": visit["weight"]})
+
         if self._sensor_type == "status":
             attrs.update({
                 "is_shared": device.get("is_share") == 1,
@@ -189,6 +225,8 @@ class FurbulousCatDeviceSensor(CoordinatorEntity, SensorEntity):
 class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
     """Representation of a Furbulous Cat property sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: FurbulousCatDataUpdateCoordinator,
@@ -198,6 +236,7 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self._attr_translation_key = friendly_name
         self._device_id = device_id
         self._property_key = property_key
         self._friendly_name = friendly_name
@@ -227,19 +266,10 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - {self._friendly_name}"
-        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
-
-    @property
     def native_value(self) -> str | int | float | None:
         """Return the state of the sensor."""
         prop = self.property_data
-        if not prop:
+        if prop is None:
             return None
 
         # Handle both dict {"value": x} and direct value cases
@@ -323,7 +353,7 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
     def extra_state_attributes(self) -> dict:
         """Return additional attributes."""
         prop = self.property_data
-        if not prop:
+        if prop is None:
             return {}
 
         # Handle both dict {"value": x} and direct value cases
@@ -366,6 +396,8 @@ class FurbulousCatPropertySensor(CoordinatorEntity, SensorEntity):
 class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
     """Representation of a Furbulous Cat daily statistics sensor."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: FurbulousCatDataUpdateCoordinator,
@@ -375,6 +407,7 @@ class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
+        self._attr_translation_key = friendly_name
         self._device_id = device_id
         self._stat_key = stat_key
         self._friendly_name = friendly_name
@@ -401,15 +434,6 @@ class FurbulousCatDailyStatsSensor(CoordinatorEntity, SensorEntity):
         if device:
             return device.get("daily_stats", {})
         return None
-
-    @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - {self._friendly_name}"
-        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
 
     @property
     def native_value(self) -> int | None:

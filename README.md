@@ -1,233 +1,249 @@
-# Furbulous Cat - Home Assistant Integration
+<div align="center">
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub release](https://img.shields.io/github/release/fabienbounoir/furbulous-litterbox-home-assistant.svg)](https://github.com/fabienbounoir/furbulous-litterbox-home-assistant/releases)
-[![HomeKit Compatible](https://img.shields.io/badge/HomeKit-Compatible-blue.svg)](docs/HOMEKIT_COMPATIBILITY.md)
+<img src="custom_components/furbulous/icon.png" width="96" alt="Furbulous">
 
-Intégration **complète et optimisée** pour les litières connectées **Furbulous Cat** dans Home Assistant avec support HomeKit.
+# Furbulous Cat for Home Assistant
+
+**Real-time integration for the Furbulous self-cleaning litter box: cat presence, weight, visits, alerts and controls, in Home Assistant and Apple Home.**
+
+[![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Release](https://img.shields.io/github/v/release/FabienBounoir/furbulous-litterbox-home-assistant)](https://github.com/FabienBounoir/furbulous-litterbox-home-assistant/releases)
+![IoT class](https://img.shields.io/badge/IoT-cloud__push-brightgreen)
+![HomeKit](https://img.shields.io/badge/HomeKit-ready-black?logo=apple)
+![Languages](https://img.shields.io/badge/i18n-EN%20·%20FR%20·%20DE%20·%20ES%20·%20IT-blue)
+
+[![Add repository to HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=FabienBounoir&repository=furbulous-litterbox-home-assistant&category=integration)
+
+</div>
+
+![Dashboard](docs/images/dashboard.jpg)
 
 ---
 
-## 🎯 Fonctionnalités
+## ✨ Highlights
 
-### ✅ Version 1.1.0 
-- ✅ **Interface simplifiée** - 50% d'entités en moins, zéro doublon
-- ✅ **6 Sensors essentiels** - Poids, utilisations, durée, erreur, firmware, pet info
-- ✅ **5 Binary Sensors** - Chat détecté (30s), bac plein, connecté, child lock, sommeil
-- ✅ **1 Button** - Nettoyage manuel (testé et fonctionnel)
-- ✅ **4 Switches HomeKit** - Auto clean, mode auto, DND, child lock
-- ✅ **Connectivité améliorée** - Retry automatique, detection token robuste
-- ✅ **Fast Updates** - Chat dans litière : **30 secondes** ⚡ / Autres : 5 minutes
-- ✅ **HomeKit Support** - Compatible avec HomeKit Bridge + Siri
-- ✅ **Auto Token Refresh** - Renouvellement automatique avec retry intelligent
-
-### 📊 Total: ~20 entités par installation
-- 6 sensors (poids, usage, erreurs, firmware, pet info)
-- 5 binary_sensors (chat détecté 30s, bac plein, connectivité, sécurité, sommeil)
-- 1 button (nettoyage manuel)
-- 4 switches HomeKit (contrôles essentiels)
-- 1+ pet sensors (un par chat)
+- ⚡ **Real time, not polling.** Uses the same WebSocket push channel as the official app: the cat is detected about 1 s after stepping in, with far less data than polling every 30 s.
+- 🐈 **Knows the difference** between a cat *in front of* the box, a cat *inside*, and a cleaning cycle.
+- 🎯 **Automation events** (`furbulous_event`): cat nearby, cat entered, cat left with visit duration and weight, cleaning done.
+- 🔔 **Official alerts** (waste bin full, lid not installed…) as a sensor and as a `furbulous_notification` event.
+- 📱 **Plays nice with the phone app.** The account allows a single session: when you open the app, the integration steps aside for 5 minutes, then reconnects by itself.
+- 🌍 **All regions** (Europe, Americas, Asia-Pacific, China) and **5 languages**.
+- 🍎 **HomeKit-friendly** entity types (occupancy, motion, switches).
+- 🩺 **Diagnostics** download with credentials redacted, for bug reports.
 
 ---
 
 ## 📦 Installation
 
-### Option 1: HACS (Recommandé)
+### HACS (recommended)
 
-1. **Ouvrir HACS** dans Home Assistant
-2. Aller dans **Intégrations**
-3. Cliquer sur les **3 points** en haut à droite → **Dépôts personnalisés**
-4. Ajouter l'URL : `https://github.com/fabienbounoir/furbulous-litterbox-home-assistant`
-5. Catégorie : **Integration**
-6. Rechercher "Furbulous Cat"
-7. Cliquer sur **Télécharger**
-8. Redémarrer Home Assistant
+1. Click the **Add repository to HACS** button above, or add `https://github.com/FabienBounoir/furbulous-litterbox-home-assistant` as a custom repository (category **Integration**).
+2. Download **Furbulous Cat** and restart Home Assistant.
 
-### Option 2: Installation manuelle
+### Manual
 
-1. **Copier les fichiers**
-```
-   ```bash
-   cd /path/to/homeassistant/config
-   mkdir -p custom_components
-   cp -r custom_components/furbulous custom_components/
-   ```
-
-2. **Redémarrer Home Assistant**
-   - Via UI: **Paramètres** → **Système** → **Redémarrer**
+Copy `custom_components/furbulous` into your `config/custom_components/` folder and restart Home Assistant.
 
 ### Configuration
 
-1. **Ajouter l'intégration**
-   - **Paramètres** → **Appareils et services** → **Ajouter une intégration**
-   - Rechercher "Furbulous Cat"
-   - Entrer email + mot de passe (compte Furbulous)
+**Settings → Devices & services → Add integration → Furbulous Cat**, then sign in with your Furbulous app account and pick the server region your app uses.
 
-2. **HomeKit (Optionnel)**
-   - Voir [HOMEKIT_COMPATIBILITY.md](docs/HOMEKIT_COMPATIBILITY.md)
-   - Exposer les switches et binary sensors recommandés
-   - Contrôler avec Siri et l'app Maison
+<img src="docs/images/config-flow.jpg" width="420" alt="Configuration">
+
+> [!IMPORTANT]
+> Furbulous accounts allow **one session at a time**. Logging into the phone app signs Home Assistant out (and vice versa). The integration handles this: it waits **5 minutes** so you can use the app, then logs back in. Entities keep their last value in the meantime.
 
 ---
 
-## 📊 Entités principales
+## 🧭 How it works
 
-### 🔘 Switches (HomeKit Compatible)
-- `switch.furbulous_box_nettoyage_automatique` - Nettoyage auto après utilisation
-- `switch.furbulous_box_mode_auto_complet` - Mode auto complet
-- `switch.furbulous_box_ne_pas_deranger` - Mode silencieux (nuit)
-- `switch.furbulous_box_verrouillage_enfant` - Sécurité enfants
+```mermaid
+flowchart LR
+    box["🐈 Litter box"] -- IoT link --> cloud["☁️ Furbulous cloud<br/>(AWS)"]
+    cloud -- "WebSocket push<br/>(real time)" --> ha["🏠 Home Assistant<br/>furbulous integration"]
+    ha -- "REST every 15 min<br/>(daily stats, alerts, firmware)" --> cloud
+    ha -- "REST commands<br/>(clean, modes…)" --> cloud
+    ha --> lovelace["📊 Dashboards"]
+    ha --> automations["⚙️ Automations<br/>furbulous_event"]
+    ha -- HomeKit Bridge --> apple["🍎 Apple Home / Siri"]
+```
 
-### 🔴 Binary Sensors
-- ⭐ `binary_sensor.furbulous_box_chat_dans_la_litiere` - Détection chat (**30s**)
-- `binary_sensor.furbulous_box_connecte` - État connexion
-- `binary_sensor.furbulous_box_erreur` - Détection erreurs
-- `binary_sensor.furbulous_box_boite_poubelle_pleine` - Bac à déchets plein
+Every property change (presence, weight, cleaning state, errors) arrives instantly over the WebSocket. REST is only used for commands, daily statistics, alerts and firmware info, and as a safety net.
 
-### 📊 Sensors
-- `sensor.furbulous_box_poids_du_chat` - Poids en grammes
-- `sensor.furbulous_box_utilisations_quotidiennes` - Nombre d'utilisations
-- `sensor.furbulous_box_etat_de_fonctionnement` - État (Idle/Working/Cleaning)
-- `sensor.furbulous_box_erreur` - Code erreur détaillé
-- `sensor.furbulous_cat_<nom>` - Infos chat (âge, poids, race)
+### Single-session handling
 
-### 🔘 Buttons
-- `button.furbulous_box_manual_clean` - Nettoyage manuel
-- `button.furbulous_box_vider` - Vider le bac
-- `button.furbulous_box_emballage_automatique` - Emballage auto
+```mermaid
+sequenceDiagram
+    participant HA as Home Assistant
+    participant Cloud as Furbulous cloud
+    participant Phone as Phone app
+    HA->>Cloud: logged in, WebSocket connected
+    Phone->>Cloud: you open the app (login)
+    Cloud-->>HA: token invalid (10403)
+    Note over HA: steps aside, no re-login for 5 min<br/>(entities keep last values)
+    Phone->>Cloud: you change settings…
+    HA->>Cloud: after 5 min: login + refresh
+    Cloud-->>Phone: phone app signed out
+```
 
-[📖 Liste complète des 40+ entités](docs/INSTALLATION.md)
+### Litter box states
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    Idle: 0 · Idle
+    Nearby: 5 · Cat in front
+    Inside: 6 · Cat inside
+    Cleaning: 1 · Cleaning
+    Idle --> Nearby: cat approaches
+    Nearby --> Inside: steps in (cat_entered)
+    Inside --> Idle: leaves (cat_left)
+    Idle --> Cleaning: auto / manual clean
+    Cleaning --> Idle: done (cleaning_done)
+```
 
 ---
 
-## 🏠 HomeKit
+## 🧩 Entities
 
-L'intégration est **100% compatible** avec HomeKit Bridge :
+<img src="docs/images/device.jpg" width="560" alt="Device page">
 
-✅ **4 switches** - Contrôle complet via Siri et app Maison  
-✅ **Binary sensor chat** - Détection présence toutes les 30 secondes  
-✅ **Binary sensors alertes** - Erreurs, bac plein, connexion  
+| Type | Entity | Notes |
+|---|---|---|
+| Binary sensor | **Cat in litter box** | `occupancy`, real time (`workstatus` 6) |
+| Binary sensor | **Cat in front of litter box** | `motion`, entrance presence sensor (`workstatus` 5) |
+| Binary sensor | Waste bin full · Connected · Child lock · Sleep mode | |
+| Sensor | **Last activity** | Time of the last visit, with `duration_seconds` and `cat_weight` attributes |
+| Sensor | Cat weight · Daily uses · Average daily duration · Error | Daily stats refresh as soon as the cat leaves |
+| Sensor | **Last notification** | Text of the latest app alert, plus the 5 most recent in `recent` |
+| Button | Manual clean · Pause · Resume · Empty litter · Pack waste | |
+| Switch | Full auto mode · Do not disturb · Child lock | |
+| Select | Cleaning delay | |
+| Update | **Firmware** | MCU and Wi-Fi versions (read-only: install updates from the app) |
 
-**Commandes Siri :**
-- *"Dis Siri, active le nettoyage automatique"*
-- *"Dis Siri, est-ce que le chat est dans la litière ?"*
-
-[📖 Guide complet HomeKit](docs/HOMEKIT_COMPATIBILITY.md)
+Entity names are translated (EN, FR, DE, ES, IT) and follow your Home Assistant language.
 
 ---
 
-## 🎨 Exemples d'automatisations
+## ⚙️ Automations
 
-### Notification présence chat
+### Events
+
+| Event | `type` / data | When |
+|---|---|---|
+| `furbulous_event` | `cat_nearby` | A cat is in front of the box |
+| `furbulous_event` | `cat_entered` | The cat steps in |
+| `furbulous_event` | `cat_left` + `duration` (s), `weight` (g), `end` | The cat leaves |
+| `furbulous_event` | `cleaning_done` | A cleaning cycle finished |
+| `furbulous_notification` | `title`, `summary`, `time` | New alert in the app (bin full, lid…) |
+
+All events also carry `iotid` and `device_name`.
+
+### Examples
+
 ```yaml
-automation:
-  - alias: "Chat détecté dans litière"
-    trigger:
-      platform: state
-      entity_id: binary_sensor.furbulous_box_chat_dans_la_litiere
-      to: 'on'
-    action:
-      service: notify.mobile_app
+# Long visit: possible health issue
+- alias: "Litter box: long visit"
+  triggers:
+    - trigger: event
+      event_type: furbulous_event
+      event_data: { type: cat_left }
+  conditions:
+    - "{{ (trigger.event.data.duration or 0) > 300 }}"
+  actions:
+    - action: notify.notify
       data:
-        message: "🐱 Milo utilise la litière"
-```
+        message: >
+          Visit of {{ trigger.event.data.duration // 60 }} min
+          ({{ trigger.event.data.weight }} g)
 
-### DND automatique la nuit
-```yaml
-automation:
-  - alias: "DND nocturne"
-    trigger:
-      - platform: time
-        at: "22:00:00"
-    action:
-      service: switch.turn_on
-      target:
-        entity_id: switch.furbulous_box_ne_pas_deranger
-```
-
-### Alerte bac plein
-```yaml
-automation:
-  - alias: "Bac à déchets plein"
-    trigger:
-      platform: state
-      entity_id: binary_sensor.furbulous_box_boite_poubelle_pleine
-      to: 'on'
-    action:
-      service: notify.mobile_app
+# Forward the app's own alerts
+- alias: "Litter box: app alerts"
+  triggers:
+    - trigger: event
+      event_type: furbulous_notification
+  actions:
+    - action: notify.notify
       data:
-        title: "�️ Furbulous"
-        message: "Le bac à déchets est plein - Vider maintenant"
+        title: "{{ trigger.event.data.title }}"
+        message: "{{ trigger.event.data.summary }}"
+
+# Night light when the cat walks up to the box
+- alias: "Litter box: night light"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.furbulous_box_cat_in_front_of_litter_box
+      to: "on"
+  conditions:
+    - condition: sun
+      after: sunset
+  actions:
+    - action: light.turn_on
+      target: { entity_id: light.hallway }
+      data: { brightness_pct: 10 }
 ```
 
-[📖 Plus d'exemples](docs/EXAMPLES.md)
+---
+
+## 📊 Dashboard
+
+<img src="docs/images/history.jpg" width="300" align="right" alt="History">
+
+The screenshots come from a dashboard built with [Mushroom](https://github.com/piitaya/lovelace-mushroom), [Bubble Card](https://github.com/Clooos/Bubble-Card) and [mini-graph-card](https://github.com/kalkih/mini-graph-card). Things worth showing:
+
+- a **status card** driven by the `work_status_code` attribute of *Cat in litter box* (0 idle, 1 cleaning, 5 in front, 6 inside);
+- **last visit** from *Last activity*, with its `duration_seconds` attribute;
+- a **weight trend** (30 days) and **daily uses** as bars (`group_by: date`);
+- a **presence timeline** (history graph of *in* and *in front*).
+
+<br clear="right">
 
 ---
 
-## 🔄 Mises à jour
+## 🍎 HomeKit
 
-| Intervalle | Entités concernées |
-|------------|-------------------|
-| **30 secondes** | Chat dans litière (binary_sensor) |
-| **5 minutes** | Tous les autres capteurs |
+Expose the entities through the built-in **HomeKit Bridge**:
 
-Le capteur de présence du chat utilise un **coordinateur rapide** pour une détection quasi temps-réel.
+| Entity | Apple Home accessory |
+|---|---|
+| Cat in litter box | Occupancy sensor, real time, usable in Home automations |
+| Cat in front of litter box | Motion sensor |
+| Waste bin full | Occupancy sensor by default. **Tip:** set *Show as → Opening* in the entity settings to get a contact sensor and native Apple Home notifications ("open" = full) |
+| Buttons and switches | Switches (buttons turn themselves off) |
 
----
-
-## 🔍 Codes d'erreur
-
-| Code | Message | Sévérité |
-|------|---------|----------|
-| 0 | No error | info |
-| 1 | Weight sensor error | warning |
-| 2 | IR sensor error | warning |
-| 4 | Motor blocked | error |
-| 8 | Motor overload | error |
-| 16 | Litter full | warning |
-| 32 | Normal operation | info |
-| 64 | Drawer not in place | warning |
-| 128 | Cover open | warning |
-| 256 | Temperature error | error |
-| 512 | Communication error | error |
+Apple Home has no generic numeric or text sensor, so weight, statistics, errors and notifications stay in Home Assistant. Consider excluding **Empty litter** and **Pack waste** from HomeKit: Home has no confirmation step.
 
 ---
 
-## 📚 Documentation
+## 🔍 Decoded values
 
-- **[INSTALLATION.md](docs/INSTALLATION.md)** - Guide installation détaillé
-- **[API_ENDPOINTS.md](docs/API_ENDPOINTS.md)** - 86 endpoints API documentés
+| `workstatus` | Meaning |
+|---|---|
+| 0 | Idle |
+| 1 | Cleaning |
+| 5 | Cat in front of the box |
+| 6 | Cat inside |
 
----
+| `errorReportEvent` | Meaning |
+|---|---|
+| 0 | No error |
+| 16 | Litter full |
+| 64 | Drawer not in place |
+| 128 | Cover open |
+| 4096 | Cat nearby (informational, not an error) |
 
-## 🤝 Contribution
-
-Les contributions sont les bienvenues ! 
-
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/amazing`)
-3. Commit (`git commit -m 'Add amazing feature'`)
-4. Push (`git push origin feature/amazing`)
-5. Ouvrir une Pull Request
-
----
-
-## 📄 Licence
-
-Ce projet est sous licence MIT - voir [LICENSE](LICENSE)
+Found another value? Download the diagnostics (**Settings → Devices → Furbulous Box → ⋮ → Download diagnostics**). Credentials are redacted. Open an issue with the file and what the box was doing.
 
 ---
 
-## 🙏 Remerciements
+## 🛠️ Development
 
-- API Furbulous pour la litière connectée
-- Communauté Home Assistant
-- Tous les contributeurs
+```bash
+python tests/test_kick.py   # session handling + value normalization (needs `requests`)
+```
 
----
+API notes from reverse engineering the Android app live in [`docs/`](docs). PRs welcome!
 
-**Version**: 1.0.0  
-**Status**: ✅ Production Ready  
-**Auteur**: [@fabienbounoir](https://github.com/fabienbounoir)  
-**HomeKit**: ✅ Compatible  
-**HACS**: ✅ Supporté
+## 📄 License
+
+MIT. See [LICENSE](LICENSE). Not affiliated with Furbulous.

@@ -8,9 +8,9 @@
     "documentation": "https://github.com/fabienbounoir/furbulous-litterbox-home-assistant",
     "issue_tracker": "https://github.com/fabienbounoir/furbulous-litterbox-home-assistant/issues",
     "integration_type": "device",
-    "iot_class": "cloud_polling",
+    "iot_class": "cloud_push",
     "requirements": [
         "requests>=2.31.0"
     ],
-    "version": "1.1.0"
+    "version": "1.2.0"
 }

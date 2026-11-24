@@ -1,9 +1,6 @@
 {
     "name": "Furbulous Cat",
     "filename": "furbulous",
-    "country": [
-        "FR"
-    ],
     "render_readme": true,
     "homeassistant": "2024.1.0"
 }

@@ -43,6 +43,9 @@ async def async_setup_entry(
 class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):
     """Switch for full auto mode - HomeKit compatible."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "full_auto_mode"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -50,7 +53,6 @@ class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_full_auto_mode_switch"
-        self._attr_name = f"{device['name']} - Mode auto complet"
         self._attr_icon = "mdi:auto-mode"
         self._attr_device_info = get_device_info(device)
 
@@ -62,7 +64,7 @@ class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):
             if device.get("iotid") == self.device_data["iotid"]:
                 properties = device.get("properties", {})
                 prop = properties.get("FullAutoModeSwitch")
-                if prop:
+                if prop is not None:
                     if isinstance(prop, dict):
                         return prop.get("value", 0) == 1
                     return prop == 1
@@ -100,6 +102,9 @@ class FurbulousCatFullAutoModeSwitch(CoordinatorEntity, SwitchEntity):
 class FurbulousCatDNDSwitch(CoordinatorEntity, SwitchEntity):
     """Switch for Do Not Disturb mode - HomeKit compatible."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "dnd"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -107,7 +112,6 @@ class FurbulousCatDNDSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_dnd_switch"
-        self._attr_name = f"{device['name']} - Ne pas déranger"
         self._attr_icon = "mdi:moon-waning-crescent"
         self._attr_device_info = get_device_info(device)
 
@@ -152,6 +156,9 @@ class FurbulousCatDNDSwitch(CoordinatorEntity, SwitchEntity):
 class FurbulousCatChildLockSwitch(CoordinatorEntity, SwitchEntity):
     """Switch for child lock - HomeKit compatible."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "child_lock"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -159,7 +166,6 @@ class FurbulousCatChildLockSwitch(CoordinatorEntity, SwitchEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_child_lock_switch"
-        self._attr_name = f"{device['name']} - Verrouillage enfant"
         self._attr_icon = "mdi:lock"
         self._attr_device_info = get_device_info(device)
 
@@ -171,7 +177,7 @@ class FurbulousCatChildLockSwitch(CoordinatorEntity, SwitchEntity):
             if device.get("iotid") == self.device_data["iotid"]:
                 properties = device.get("properties", {})
                 prop = properties.get("childLockOnOff")
-                if prop:
+                if prop is not None:
                     if isinstance(prop, dict):
                         return prop.get("value", 0) == 1
                     return prop == 1

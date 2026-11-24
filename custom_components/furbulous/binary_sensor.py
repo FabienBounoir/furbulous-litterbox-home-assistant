@@ -11,7 +11,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import FurbulousCatDataUpdateCoordinator
-from .const import DOMAIN
+from .const import CAT_NEARBY_STATUSES, CAT_PRESENT_STATUSES, DOMAIN, WORK_STATUS
 from .device import get_device_info
 
 
@@ -23,7 +23,6 @@ async def async_setup_entry(
     """Set up Furbulous Cat binary sensors."""
     coordinators = hass.data[DOMAIN][config_entry.entry_id]
     coordinator = coordinators["coordinator"]
-    fast_coordinator = coordinators["fast_coordinator"]
 
     entities = []
     
@@ -38,20 +37,21 @@ async def async_setup_entry(
                 # 1. Device online status
                 FurbulousCatOnlineBinarySensor(coordinator, device_id),
                 
-                # 2. Cat in box sensor (FAST UPDATE - 30 seconds)
-                FurbulousCatInBoxSensor(fast_coordinator, device_id),
+                # 2. Cat in box sensor (real-time via WebSocket)
+                FurbulousCatInBoxSensor(coordinator, device_id),
+                FurbulousCatNearbySensor(coordinator, device_id),
                 
                 # 3. Waste bin full sensor
                 FurbulousCatWasteBinFullSensor(coordinator, device_id),
                 
                 # 4. Child lock (seul capteur binaire de sécurité nécessaire)
                 FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "childLockOnOff", "Verrouillage enfant", "lock"
+                    coordinator, device_id, "childLockOnOff", "child_lock", "lock"
                 ),
                 
                 # 5. Sleep mode (mode Ne Pas Déranger)
                 FurbulousCatPropertyBinarySensor(
-                    coordinator, device_id, "masterSleepOnOff", "Mode sommeil", "running"
+                    coordinator, device_id, "masterSleepOnOff", "sleep_mode", "running"
                 ),
             ])
     
@@ -60,6 +60,9 @@ async def async_setup_entry(
 
 class FurbulousCatOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor for device online status."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "connectivity"
 
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
 
@@ -88,15 +91,6 @@ class FurbulousCatOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Connecté"
-        return f"Furbulous Device {self._device_id} - Connecté"
-
-    @property
     def is_on(self) -> bool:
         """Return true if the device is online."""
         device = self.device_data
@@ -111,9 +105,14 @@ class FurbulousCatOnlineBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
 
 class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
-    """Binary sensor for cat presence in litter box (FAST UPDATE - 30 seconds)."""
+    """Binary sensor for cat presence in litter box (real-time via WebSocket)."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "cat_in_box"
 
     _attr_device_class = BinarySensorDeviceClass.OCCUPANCY
+    _statuses = CAT_PRESENT_STATUSES
+    _unique_suffix = "cat_in_box"
 
     def __init__(
         self,
@@ -123,7 +122,7 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self._device_id = device_id
-        self._attr_unique_id = f"furbulous_{device_id}_cat_in_box"
+        self._attr_unique_id = f"furbulous_{device_id}_{self._unique_suffix}"
         
         # Set device info
         device = self.device_data
@@ -140,15 +139,6 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Chat dans la litière"
-        return f"Furbulous Device {self._device_id} - Chat dans la litière"
-
-    @property
     def is_on(self) -> bool:
         """Return true if cat is in the litter box."""
         device = self.device_data
@@ -156,17 +146,14 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
             properties = device.get("properties", {})
             workstatus_prop = properties.get("workstatus")
             
-            if workstatus_prop:
+            if workstatus_prop is not None:
                 # Handle both dict {"value": x} and direct value cases
                 if isinstance(workstatus_prop, dict):
                     workstatus = workstatus_prop.get("value", 0)
                 else:
                     workstatus = workstatus_prop
                 
-                # workstatus == 1 signifie "Working" = Chat utilise la litière
-                # workstatus == 0 signifie "Idle" = Pas de chat
-                # workstatus == 2 signifie "Cleaning" = Nettoyage en cours
-                return workstatus == 1
+                return workstatus in self._statuses
         
         return False
 
@@ -182,22 +169,14 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
         
         attrs = {}
         
-        if workstatus_prop:
+        if workstatus_prop is not None:
             if isinstance(workstatus_prop, dict):
                 workstatus = workstatus_prop.get("value", 0)
                 attrs["last_update"] = workstatus_prop.get("time")
             else:
                 workstatus = workstatus_prop
             
-            # Mapping des statuts
-            status_map = {
-                0: "Idle",
-                1: "Working (Chat présent)",
-                2: "Cleaning",
-                3: "Paused",
-                4: "Error",
-            }
-            attrs["work_status"] = status_map.get(workstatus, f"Unknown ({workstatus})")
+            attrs["work_status"] = WORK_STATUS.get(workstatus, f"Unknown ({workstatus})")
             attrs["work_status_code"] = workstatus
         
         # Ajouter le poids du chat si disponible
@@ -216,8 +195,20 @@ class FurbulousCatInBoxSensor(CoordinatorEntity, BinarySensorEntity):
         return self.device_data is not None
 
 
+class FurbulousCatNearbySensor(FurbulousCatInBoxSensor):
+    """Cat in front of the box (entrance presence sensor, workstatus 5), not inside it."""
+
+    _attr_translation_key = "cat_nearby"
+    _attr_device_class = BinarySensorDeviceClass.MOTION
+    _statuses = CAT_NEARBY_STATUSES
+    _unique_suffix = "cat_nearby"
+
+
 class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor for waste bin full status."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "waste_bin_full"
 
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
@@ -245,15 +236,6 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Boîte poubelle pleine"
-        return f"Furbulous Device {self._device_id} - Boîte poubelle pleine"
-
-    @property
     def is_on(self) -> bool:
         """Return true if waste bin is full."""
         device = self.device_data
@@ -262,7 +244,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             
             # Méthode 1: Vérifier le code d'erreur 16
             error_prop = properties.get("errorReportEvent")
-            if error_prop:
+            if error_prop is not None:
                 if isinstance(error_prop, dict):
                     error_code = error_prop.get("value", 0)
                 else:
@@ -274,7 +256,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             # Méthode 2: Logique basée sur completionStatus
             # completionStatus == 1 pourrait indiquer "terminé/plein"
             completion_prop = properties.get("completionStatus")
-            if completion_prop:
+            if completion_prop is not None:
                 if isinstance(completion_prop, dict):
                     completion = completion_prop.get("value", 0)
                 else:
@@ -288,7 +270,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             # Méthode 3: Vérifier handMode == 2 (dump mode actif)
             # Si le mode "dump" est actif, c'est peut-être parce que c'est plein
             hand_mode_prop = properties.get("handMode")
-            if hand_mode_prop:
+            if hand_mode_prop is not None:
                 if isinstance(hand_mode_prop, dict):
                     hand_mode = hand_mode_prop.get("value", 0)
                 else:
@@ -317,7 +299,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             
             # Error code
             error_prop = properties.get("errorReportEvent")
-            if error_prop:
+            if error_prop is not None:
                 if isinstance(error_prop, dict):
                     error_code = error_prop.get("value", 0)
                 else:
@@ -326,7 +308,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             
             # Completion status
             completion_prop = properties.get("completionStatus")
-            if completion_prop:
+            if completion_prop is not None:
                 if isinstance(completion_prop, dict):
                     completion = completion_prop.get("value", 0)
                 else:
@@ -335,7 +317,7 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
             
             # Hand mode
             hand_mode_prop = properties.get("handMode")
-            if hand_mode_prop:
+            if hand_mode_prop is not None:
                 if isinstance(hand_mode_prop, dict):
                     hand_mode = hand_mode_prop.get("value", 0)
                 else:
@@ -363,6 +345,8 @@ class FurbulousCatWasteBinFullSensor(CoordinatorEntity, BinarySensorEntity):
 class FurbulousCatPropertyBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor based on device properties."""
 
+    _attr_has_entity_name = True
+
     def __init__(
         self,
         coordinator: FurbulousCatDataUpdateCoordinator,
@@ -373,6 +357,7 @@ class FurbulousCatPropertyBinarySensor(CoordinatorEntity, BinarySensorEntity):
     ) -> None:
         """Initialize the binary sensor."""
         super().__init__(coordinator)
+        self._attr_translation_key = friendly_name
         self._device_id = device_id
         self._property_key = property_key
         self._friendly_name = friendly_name
@@ -405,19 +390,10 @@ class FurbulousCatPropertyBinarySensor(CoordinatorEntity, BinarySensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - {self._friendly_name}"
-        return f"Furbulous Device {self._device_id} - {self._friendly_name}"
-
-    @property
     def is_on(self) -> bool:
         """Return true if the binary sensor is on."""
         prop = self.property_data
-        if prop:
+        if prop is not None:
             # Handle both dict {"value": x} and direct value cases
             if isinstance(prop, dict):
                 value = prop.get("value")
@@ -448,6 +424,9 @@ class FurbulousCatPropertyBinarySensor(CoordinatorEntity, BinarySensorEntity):
 class FurbulousCatErrorBinarySensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor for error status."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "error"
+
     _attr_device_class = BinarySensorDeviceClass.PROBLEM
 
     def __init__(
@@ -475,22 +454,13 @@ class FurbulousCatErrorBinarySensor(CoordinatorEntity, BinarySensorEntity):
         return None
 
     @property
-    def name(self) -> str:
-        """Return the name of the sensor."""
-        device = self.device_data
-        if device:
-            device_name = device.get("name", f"Device {self._device_id}")
-            return f"{device_name} - Erreur"
-        return f"Furbulous Device {self._device_id} - Erreur"
-
-    @property
     def is_on(self) -> bool:
         """Return true if there is an error."""
         device = self.device_data
         if device:
             properties = device.get("properties", {})
             error_prop = properties.get("errorReportEvent")
-            if error_prop:
+            if error_prop is not None:
                 # Handle both dict {"value": x} and direct value cases
                 if isinstance(error_prop, dict):
                     error_code = error_prop.get("value", 0)
@@ -506,7 +476,7 @@ class FurbulousCatErrorBinarySensor(CoordinatorEntity, BinarySensorEntity):
         if device:
             properties = device.get("properties", {})
             error_prop = properties.get("errorReportEvent")
-            if error_prop:
+            if error_prop is not None:
                 # Handle both dict {"value": x} and direct value cases
                 if isinstance(error_prop, dict):
                     error_code = error_prop.get("value", 0)

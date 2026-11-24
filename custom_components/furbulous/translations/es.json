@@ -1,0 +1,120 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configurar Furbulous Cat",
+                "description": "Inicia sesión con tu cuenta de la app Furbulous. Nota: la cuenta solo permite una sesión a la vez — abrir la app del móvil pausa Home Assistant durante 5 minutos.",
+                "data": {
+                    "email": "Correo electrónico",
+                    "password": "Contraseña",
+                    "region": "Región del servidor"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Credenciales no válidas",
+            "cannot_connect": "No se puede conectar con la API",
+            "unknown": "Error inesperado",
+            "missing_credentials": "Se requieren correo y contraseña"
+        },
+        "abort": {
+            "already_configured": "Esta cuenta ya está configurada"
+        }
+    },
+    "selector": {
+        "region": {
+            "options": {
+                "eu": "Europa",
+                "us": "América",
+                "ap": "Asia-Pacífico",
+                "cn": "China"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "last_active": {
+                "name": "Última actividad"
+            },
+            "cat_weight": {
+                "name": "Peso del gato"
+            },
+            "daily_uses": {
+                "name": "Usos diarios"
+            },
+            "daily_avg_duration": {
+                "name": "Duración media diaria"
+            },
+            "error": {
+                "name": "Error"
+            },
+            "status": {
+                "name": "Estado"
+            },
+            "last_notification": {
+                "name": "Última notificación"
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Conectado"
+            },
+            "cat_in_box": {
+                "name": "Gato en el arenero"
+            },
+            "cat_nearby": {
+                "name": "Gato delante del arenero"
+            },
+            "waste_bin_full": {
+                "name": "Depósito de residuos lleno"
+            },
+            "child_lock": {
+                "name": "Bloqueo infantil"
+            },
+            "sleep_mode": {
+                "name": "Modo reposo"
+            },
+            "error": {
+                "name": "Error"
+            }
+        },
+        "button": {
+            "manual_clean": {
+                "name": "Limpieza manual"
+            },
+            "pause_clean": {
+                "name": "Pausar limpieza"
+            },
+            "resume_clean": {
+                "name": "Reanudar limpieza"
+            },
+            "dump": {
+                "name": "Vaciar arena"
+            },
+            "pack": {
+                "name": "Empaquetar residuos"
+            }
+        },
+        "switch": {
+            "full_auto_mode": {
+                "name": "Modo automático completo"
+            },
+            "dnd": {
+                "name": "No molestar"
+            },
+            "child_lock": {
+                "name": "Bloqueo infantil"
+            }
+        },
+        "select": {
+            "clean_delay": {
+                "name": "Retraso de limpieza"
+            }
+        },
+        "update": {
+            "firmware": {
+                "name": "Firmware"
+            }
+        }
+    }
+}

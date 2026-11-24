@@ -9,8 +9,9 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig, SelectSelectorMode
 
-from .const import DOMAIN
+from .const import CONF_REGION, DEFAULT_REGION, DOMAIN, REGIONS
 from .furbulous_api import FurbulousCatAPI, FurbulousCatAuthError
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,6 +20,9 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_EMAIL): str,
         vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_REGION, default=DEFAULT_REGION): SelectSelector(
+            SelectSelectorConfig(options=list(REGIONS), translation_key=CONF_REGION, mode=SelectSelectorMode.DROPDOWN)
+        ),
     }
 )
 
@@ -43,7 +47,8 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     api = FurbulousCatAPI(
                         email=user_input[CONF_EMAIL],
                         password=user_input[CONF_PASSWORD],
-                        account_type=1  # Always use account_type = 1
+                        account_type=1,  # Always use account_type = 1
+                        region=user_input[CONF_REGION],
                     )
                     await self.hass.async_add_executor_job(api.authenticate)
 
@@ -57,6 +62,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             CONF_EMAIL: user_input[CONF_EMAIL],
                             CONF_PASSWORD: user_input[CONF_PASSWORD],
                             "account_type": 1,
+                            CONF_REGION: user_input[CONF_REGION],
                         },
                     )
 

@@ -1,0 +1,120 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configura Furbulous Cat",
+                "description": "Accedi con il tuo account dell'app Furbulous. Nota: l'account consente una sola sessione alla volta — aprire l'app sul telefono mette in pausa Home Assistant per 5 minuti.",
+                "data": {
+                    "email": "Email",
+                    "password": "Password",
+                    "region": "Regione del server"
+                }
+            }
+        },
+        "error": {
+            "invalid_auth": "Credenziali non valide",
+            "cannot_connect": "Impossibile raggiungere l'API",
+            "unknown": "Errore imprevisto",
+            "missing_credentials": "Email e password obbligatorie"
+        },
+        "abort": {
+            "already_configured": "Questo account è già configurato"
+        }
+    },
+    "selector": {
+        "region": {
+            "options": {
+                "eu": "Europa",
+                "us": "Americhe",
+                "ap": "Asia-Pacifico",
+                "cn": "Cina"
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "last_active": {
+                "name": "Ultima attività"
+            },
+            "cat_weight": {
+                "name": "Peso del gatto"
+            },
+            "daily_uses": {
+                "name": "Utilizzi giornalieri"
+            },
+            "daily_avg_duration": {
+                "name": "Durata media giornaliera"
+            },
+            "error": {
+                "name": "Errore"
+            },
+            "status": {
+                "name": "Stato"
+            },
+            "last_notification": {
+                "name": "Ultima notifica"
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connesso"
+            },
+            "cat_in_box": {
+                "name": "Gatto nella lettiera"
+            },
+            "cat_nearby": {
+                "name": "Gatto davanti alla lettiera"
+            },
+            "waste_bin_full": {
+                "name": "Cassetto rifiuti pieno"
+            },
+            "child_lock": {
+                "name": "Blocco bambini"
+            },
+            "sleep_mode": {
+                "name": "Modalità notte"
+            },
+            "error": {
+                "name": "Errore"
+            }
+        },
+        "button": {
+            "manual_clean": {
+                "name": "Pulizia manuale"
+            },
+            "pause_clean": {
+                "name": "Pausa pulizia"
+            },
+            "resume_clean": {
+                "name": "Riprendi pulizia"
+            },
+            "dump": {
+                "name": "Svuota lettiera"
+            },
+            "pack": {
+                "name": "Imballa rifiuti"
+            }
+        },
+        "switch": {
+            "full_auto_mode": {
+                "name": "Modalità completamente automatica"
+            },
+            "dnd": {
+                "name": "Non disturbare"
+            },
+            "child_lock": {
+                "name": "Blocco bambini"
+            }
+        },
+        "select": {
+            "clean_delay": {
+                "name": "Ritardo pulizia"
+            }
+        },
+        "update": {
+            "firmware": {
+                "name": "Firmware"
+            }
+        }
+    }
+}
