@@ -8,7 +8,10 @@ import requests
 from typing import Any
 
 from .const import (
-    API_BASE_URL,
+    DEFAULT_REGION,
+    KICK_COOLDOWN,
+    REGIONS,
+    TOKEN_INVALID_CODE,
     API_AUTH_ENDPOINT,
     API_DEVICE_LIST_ENDPOINT,
     API_DEVICE_PROPERTIES_ENDPOINT,
@@ -25,10 +28,30 @@ class FurbulousCatAuthError(Exception):
     """Exception raised for authentication errors."""
 
 
+def extract_properties(raw: dict, times: dict | None = None) -> dict[str, Any]:
+    """{prop: {"value", "time"}} -> {prop: value}, with numeric strings ("1") turned into ints
+    so every `== 1` / WORK_STATUS.get(value) downstream works whatever type the API sends.
+    If `times` is given, it is filled with {prop: unix seconds of last change}."""
+    out = {}
+    for key, prop in raw.items():
+        if times is not None and isinstance(prop, dict) and prop.get("time"):
+            t = int(prop["time"])
+            times[key] = t // 1000 if t > 10**12 else t  # ponytail: tolerate ms timestamps
+        value = prop.get("value") if isinstance(prop, dict) and "value" in prop else prop
+        if isinstance(value, str) and value.lstrip("-").isdigit():
+            value = int(value)
+        out[key] = value
+    return out
+
+
+class FurbulousCatKicked(Exception):
+    """Session taken over by another login (e.g. the phone app). Waiting before logging back in."""
+
+
 class FurbulousCatAPI:
     """API client for Furbulous Cat."""
 
-    def __init__(self, email: str, password: str, account_type: int = 1, token: str = None) -> None:
+    def __init__(self, email: str, password: str, account_type: int = 1, token: str = None, region: str = DEFAULT_REGION) -> None:
         """Initialize the API client."""
         self.email = email
         self.password = password
@@ -37,6 +60,22 @@ class FurbulousCatAPI:
         self.identity_id = None
         self.session = requests.Session()
         self.devices = []
+        self.base_url, self.ws_url = REGIONS[region]
+        self.kicked_until = 0.0
+
+    def mark_kicked(self) -> None:
+        """Drop the dead token and hold off re-login for KICK_COOLDOWN seconds."""
+        if self.token:
+            _LOGGER.warning(
+                "Furbulous session taken over (phone app login?). Reconnecting in %d min.",
+                KICK_COOLDOWN // 60,
+            )
+            self.kicked_until = time.time() + KICK_COOLDOWN
+        self.token = None
+
+    @property
+    def kicked_remaining(self) -> float:
+        return max(0.0, self.kicked_until - time.time())
 
     def _generate_sign(self, timestamp: int, path: str) -> str:
         """Generate signature for API requests.
@@ -49,7 +88,9 @@ class FurbulousCatAPI:
 
     def authenticate(self) -> bool:
         """Authenticate with the Furbulous Cat API."""
-        url = f"{API_BASE_URL}{API_AUTH_ENDPOINT}"
+        if self.kicked_remaining:
+            raise FurbulousCatKicked(f"Waiting {int(self.kicked_remaining)}s before logging back in")
+        url = f"{self.base_url}{API_AUTH_ENDPOINT}"
         
         # Generate timestamp and signature for login request
         timestamp = int(time.time())
@@ -141,7 +182,7 @@ class FurbulousCatAPI:
         if not self.token:
             self.authenticate()
         
-        url = f"{API_BASE_URL}{endpoint}"
+        url = f"{self.base_url}{endpoint}"
         # Extract path without query parameters for signature
         base_endpoint = endpoint.split('?')[0]
         headers = self._get_headers(base_endpoint)
@@ -170,25 +211,18 @@ class FurbulousCatAPI:
                 # AMÉLIORATION: Détection robuste des erreurs de token
                 # Code 10403 = "无效的 Token" (Invalid Token)
                 is_token_error = (
-                    error_code in [401, 403, 10401, 10402, 10403] or  # Auth error codes
-                    "token" in error_message.lower() or 
+                    error_code in [401, 403, 10401, 10402, TOKEN_INVALID_CODE] or  # Auth error codes
+                    "token" in error_message.lower() or
                     "无效的" in error_message or  # Invalid in Chinese
-                    "Token" in error_message or
                     "expired" in error_message.lower() or
                     "unauthor" in error_message.lower()
                 )
-                
-                if is_token_error and retry_count < max_retries:
-                    _LOGGER.info("Token expired or invalid (code: %s), re-authenticating... (attempt %d/%d)", 
-                                error_code, retry_count + 1, max_retries)
-                    # Force new authentication
-                    self.token = None
-                    self.authenticate()
-                    # Retry with exponential backoff
-                    wait_time = 2 ** retry_count
-                    _LOGGER.debug("Waiting %d seconds before retry...", wait_time)
-                    time.sleep(wait_time)
-                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
+
+                if is_token_error:
+                    # Single session per account: re-login now would kick the phone app.
+                    # ponytail: a plain token expiry also waits KICK_COOLDOWN (can't tell them apart; rare)
+                    self.mark_kicked()
+                    raise FurbulousCatKicked(f"Token invalid (code {error_code})")
             
             return result
 
@@ -204,15 +238,9 @@ class FurbulousCatAPI:
         except requests.exceptions.RequestException as err:
             _LOGGER.error("Error making authenticated request to %s (attempt %d/%d): %s", endpoint, retry_count + 1, max_retries, err)
             
-            # Retry authentication if we get a 401
-            if hasattr(err, 'response') and err.response is not None and err.response.status_code == 401:
-                if retry_count < max_retries:
-                    _LOGGER.info("Got 401 error, re-authenticating... (attempt %d/%d)", retry_count + 1, max_retries)
-                    self.token = None
-                    self.authenticate()
-                    wait_time = 2 ** retry_count
-                    time.sleep(wait_time)
-                    return self._make_authenticated_request(endpoint, method, data, retry_count + 1)
+            if getattr(err, 'response', None) is not None and err.response.status_code == 401:
+                self.mark_kicked()
+                raise FurbulousCatKicked("HTTP 401") from err
             
             # Retry on network errors
             if retry_count < max_retries and isinstance(err, (requests.exceptions.ConnectionError, requests.exceptions.HTTPError)):
@@ -242,7 +270,7 @@ class FurbulousCatAPI:
             _LOGGER.error("Error getting devices: %s", err)
             raise
 
-    def get_device_properties(self, iotid: str) -> dict[str, Any]:
+    def get_device_properties(self, iotid: str, times: dict | None = None) -> dict[str, Any]:
         """Get properties for a specific device.
         
         Uses the properties/get endpoint which returns all device properties.
@@ -254,16 +282,8 @@ class FurbulousCatAPI:
             result = self._make_authenticated_request(endpoint)
             
             if result.get("code") == 0:
-                properties = result.get("data", {})
-                # Extract just the values from the properties
-                # Each property is a dict with 'value' and 'time'
-                extracted_props = {}
-                for key, prop_data in properties.items():
-                    if isinstance(prop_data, dict) and 'value' in prop_data:
-                        extracted_props[key] = prop_data['value']
-                    else:
-                        extracted_props[key] = prop_data
-                
+                extracted_props = extract_properties(result.get("data") or {}, times)
+
                 _LOGGER.debug("Retrieved %d properties for device %s", len(extracted_props), iotid)
                 return extracted_props
             else:
@@ -421,6 +441,29 @@ class FurbulousCatAPI:
             _LOGGER.warning("Error getting info for pet %s: %s", pet_id, err)
             return {}
 
+    def get_notifications(self) -> list[dict[str, Any]]:
+        """Latest device alerts shown in the app's notice tab: [{record_id, title, summary, push_time, icon}]."""
+        try:
+            result = self._make_authenticated_request("/app/v1/user/devicePushRecord?page_no=1&page_size=20")
+            data = result.get("data") or {}
+            return (data.get("list") or []) if result.get("code") == 0 else []
+        except FurbulousCatKicked:
+            raise
+        except Exception as err:
+            _LOGGER.warning("Error getting notifications: %s", err)
+            return []
+
+    def get_ota(self, iotid: str) -> dict[str, Any]:
+        """Firmware info: {currentVersion, firmwareVersion, details, status, ...} ({} when none)."""
+        try:
+            result = self._make_authenticated_request(f"/app/v1/device/ota?iotid={iotid}")
+            return (result.get("data") or {}) if result.get("code") == 0 else {}
+        except FurbulousCatKicked:
+            raise
+        except Exception as err:
+            _LOGGER.warning("Error getting firmware info for %s: %s", iotid, err)
+            return {}
+
     def get_data(self) -> dict[str, Any]:
         """Get data from the Furbulous Cat API."""
         devices = self.get_devices()
@@ -430,8 +473,10 @@ class FurbulousCatAPI:
         for device in devices:
             iotid = device.get("iotid")
             if iotid:
-                properties = self.get_device_properties(iotid)
+                device["property_times"] = {}
+                properties = self.get_device_properties(iotid, device["property_times"])
                 device["properties"] = properties
+                device["ota"] = self.get_ota(iotid)
                 # Get daily stats from wcheader endpoint
                 daily_stats = self.get_device_daily_stats(iotid)
                 device["daily_stats"] = daily_stats
@@ -440,12 +485,15 @@ class FurbulousCatAPI:
         # Get pets information
         pets = self.get_pets()
         
-        # No need to get detailed info, /pet/list already returns everything
-        
+        # The per-device getters swallow errors and return {}: don't publish a half-empty snapshot if we got kicked mid-way
+        if self.token is None:
+            raise FurbulousCatKicked("Session lost during refresh")
+
         return {
             "authenticated": True,
             "token": self.token,
             "identity_id": self.identity_id,
             "devices": devices_with_properties,
             "pets": pets,
+            "notifications": self.get_notifications(),
         }

@@ -43,6 +43,9 @@ async def async_setup_entry(
 class FurbulousCatManualCleanButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat manual clean button."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "manual_clean"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -51,7 +54,6 @@ class FurbulousCatManualCleanButton(CoordinatorEntity, ButtonEntity):
         self.coordinator = coordinator
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_manual_clean"
-        self._attr_name = f"{device['name']} Nettoyage Manuel"
         self._attr_icon = "mdi:broom"
         self._attr_device_info = get_device_info(device)
 
@@ -83,6 +85,9 @@ class FurbulousCatManualCleanButton(CoordinatorEntity, ButtonEntity):
 class FurbulousCatPauseCleanButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat pause cleaning button."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "pause_clean"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -91,7 +96,6 @@ class FurbulousCatPauseCleanButton(CoordinatorEntity, ButtonEntity):
         self.coordinator = coordinator
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_pause_clean"
-        self._attr_name = f"{device['name']} Pause Nettoyage"
         self._attr_icon = "mdi:pause"
         self._attr_device_info = get_device_info(device)
 
@@ -121,6 +125,9 @@ class FurbulousCatPauseCleanButton(CoordinatorEntity, ButtonEntity):
 class FurbulousCatResumeCleanButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat resume cleaning button."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "resume_clean"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -129,7 +136,6 @@ class FurbulousCatResumeCleanButton(CoordinatorEntity, ButtonEntity):
         self.coordinator = coordinator
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_resume_clean"
-        self._attr_name = f"{device['name']} Reprendre Nettoyage"
         self._attr_icon = "mdi:play"
         self._attr_device_info = get_device_info(device)
 
@@ -159,6 +165,9 @@ class FurbulousCatResumeCleanButton(CoordinatorEntity, ButtonEntity):
 class FurbulousCatDumpButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat dump/empty button."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "dump"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -166,7 +175,6 @@ class FurbulousCatDumpButton(CoordinatorEntity, ButtonEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_dump"
-        self._attr_name = f"{device['name']} Vider"
         self._attr_icon = "mdi:delete-empty"
         self._attr_device_info = get_device_info(device)
 
@@ -195,6 +203,9 @@ class FurbulousCatDumpButton(CoordinatorEntity, ButtonEntity):
 class FurbulousCatPackButton(CoordinatorEntity, ButtonEntity):
     """Representation of a Furbulous Cat pack bag button."""
 
+    _attr_has_entity_name = True
+    _attr_translation_key = "pack"
+
     def __init__(
         self, coordinator: DataUpdateCoordinator, device: dict[str, Any]
     ) -> None:
@@ -202,7 +213,6 @@ class FurbulousCatPackButton(CoordinatorEntity, ButtonEntity):
         super().__init__(coordinator)
         self.device_data = device
         self._attr_unique_id = f"{device['iotid']}_pack"
-        self._attr_name = f"{device['name']} Emballer"
         self._attr_icon = "mdi:package"
         self._attr_device_info = get_device_info(device)
 

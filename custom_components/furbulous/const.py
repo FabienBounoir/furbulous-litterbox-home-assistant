@@ -2,8 +2,21 @@
 
 DOMAIN = "furbulous"
 
-# API Constants
-API_BASE_URL = "https://app.api.fr.furbulouspet.com:1443"
+# Regions: (REST API host, real-time WebSocket) — from app 2.0.4 CountryBean.getHost/getWebsocket
+CONF_REGION = "region"
+DEFAULT_REGION = "eu"
+REGIONS = {
+    "eu": ("https://app.api.fr.furbulouspet.com:1443", "wss://ovqwe3lj6k.execute-api.eu-central-1.amazonaws.com/production_eu/"),
+    "us": ("https://app.api.us.furbulouspet.com:1443", "wss://8foshorfod.execute-api.us-east-1.amazonaws.com/production_us/"),
+    "ap": ("https://app.api.ap.furbulouspet.com:1443", "wss://0c59onhjo9.execute-api.ap-southeast-1.amazonaws.com/production_ap/"),
+    "cn": ("https://app.api.cn.furbulouspet.cn:1443", "wss://2hu93rmr11.execute-api.cn-northwest-1.amazonaws.com.cn/production_cn/"),
+}
+
+# The account allows a single session: when the phone app logs in, our token dies (code 10403).
+# Wait this long before logging back in, so the phone isn't kicked right away.
+KICK_COOLDOWN = 300
+TOKEN_INVALID_CODE = 10403
+
 API_AUTH_ENDPOINT = "/app/v1/auth/login"
 API_DEVICE_LIST_ENDPOINT = "/app/v1/device/list"
 API_DEVICE_PROPERTIES_ENDPOINT = "/app/v1/device/properties/get"
@@ -27,11 +40,21 @@ PRODUCT_FURBULOUS_BOX = 1
 # Work Status
 WORK_STATUS = {
     0: "Idle",
-    1: "Working",
+    1: "Cleaning",  # observed 2026-11-24: manual clean cycle
     2: "Cleaning",
     3: "Paused",
     4: "Error",
+    5: "Cat nearby",  # observed 2026-11-24: someone in front of the box (comes with errorReportEvent 4096)
+    6: "Cat inside",  # observed 2026-11-24: weight sensor occupied
 }
+
+# workstatus values meaning "cat inside the box" (5 = only in front of it, 1 = cleaning)
+CAT_PRESENT_STATUSES = {6}
+CAT_NEARBY_STATUSES = {5}
+
+# Home Assistant bus events (for automations)
+EVENT_FURBULOUS = "furbulous_event"  # data.type: cat_nearby | cat_entered | cat_left | cleaning_done
+EVENT_NOTIFICATION = "furbulous_notification"  # same alerts as the app's notice tab
 
 # Litter Type
 LITTER_TYPE = {
@@ -54,6 +77,7 @@ ERROR_CODES = {
     128: "Cover open",
     256: "Temperature error",
     512: "Communication error",
+    4096: "Cat nearby",  # not an error: presence sensor at the entrance (observed 2026-11-24)
 }
 
 # Error severity levels
@@ -69,6 +93,7 @@ ERROR_SEVERITY = {
     128: "warning",
     256: "error",
     512: "error",
+    4096: "info",
 }
 
 # Unit of measurement
